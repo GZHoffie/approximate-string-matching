@@ -33,6 +33,10 @@ class LEAP(ApproximateStringMatching):
         # Define essential cost functions
         self.penalty = penalty
         self.forward = forward
+
+        # Store result of edit distance calculation
+        self.finalLane = None
+        self.finalEnergy = None
     
 
     def leapLanePenalty(self, l_, l):
@@ -49,7 +53,7 @@ class LEAP(ApproximateStringMatching):
                 return self.hurdleCost * abs(l_ - l)
         
 
-    def leapForwardColumn(self, l_, l, pos):
+    def leapForwardColumn(self, l_, l, pos=0):
         """
         Returns the number of columns the toad moves forward when leaping from lane l_ to l. 
         When l and l_ are the same lane, then the number should just be 1.
@@ -112,7 +116,7 @@ class LEAP(ApproximateStringMatching):
                 print("vth", length)
                 self.end[l+k][0] = self.start[l+k][0] + length
         #print(self.start)
-        #print(self.end)l
+        #print(self.end)
         
         for e in range(1, self.E+1):
             for l in range(-k, k+1):
@@ -139,17 +143,48 @@ class LEAP(ApproximateStringMatching):
                 #print("final", l, e, self.end[l+k][e])
                 if l in self.destinationLanes and self.end[l+k][e] >= self.destinationLanes[l] - 1:
                     if e < finalEnergy:
-                        finalLane = l
-                        finalEnergy = e
-                        return finalLane, finalEnergy
+                        self.finalLane = l
+                        self.finalEnergy = e
+                        return True
         
-        return None, None
+        return False
+
+
+    def backtrack(self):
+        path = []
+        l = self.finalLane
+        e = self.finalEnergy
+        k = self.k
+        pathCount = 1
+        path.append({"lane": l,
+                     "start": self.start[l + k][e],
+                     "end": self.end[l + k][e]})
+        while l not in self.originLanes or self.start[l+k][e] != self.originLanes[l]:
+
+            for l_ in range(-k, k+1):
+                e_ = e - self.leapLanePenalty(l_, l)
+                print("current", l_, e_)
+
+                if self.end[l_+k][e_] + self.leapForwardColumn(l_, l) == self.start[l+k][e]:
+                    l = l_
+                    e = e_
+                    break
+
+            path.insert(0, {"lane": l,
+                            "start": self.start[l + k][e],
+                            "end": self.end[l + k][e]})
+
+            pathCount += 1
+
+        return path, pathCount
 
         
 if __name__ == "__main__":
     prob = LEAP("ACTAGAACTT", "ACTTAGCACT", 2, 10)
-    finalLane, finalEnergy = prob.editDistance()
-    print(finalLane, finalEnergy)
+    prob.editDistance()
+    print(prob.finalLane, prob.finalEnergy)
+    path, pathCount = prob.backtrack()
+    print(path, pathCount)
 
 
         

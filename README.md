@@ -4,4 +4,4 @@ This repository contains experimental scripts of approximate string matching alg
 
 - [x] Needleman-Wunsch Algorithm
 - [ ] Landau-Vishkin Algorithm (backtracking missing)
-- [ ] LEAP
+- [x] LEAP

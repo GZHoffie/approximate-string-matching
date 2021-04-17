@@ -1,4 +1,4 @@
-from util import ApproximateStringMatching
+from util import ApproximateStringMatching, deBrujin32Bit, bit_not
 import numpy as np
 
 class LEAP(ApproximateStringMatching):
@@ -9,6 +9,9 @@ class LEAP(ApproximateStringMatching):
             temp = dna1
             dna1 = dna2
             dna2 = temp
+
+        # Enable de-Brujin acceleration
+        self.deBrujin = True
         
         super().__init__(dna1, dna2)
         self.k = k # Maximum differences allowed
@@ -22,7 +25,11 @@ class LEAP(ApproximateStringMatching):
         self.start.fill(float('-inf'))
         self.end = np.zeros((2*k + 1, E + 1))
         self.end.fill(float('-inf'))
-        self.hurdles = np.zeros((2*k + 1, self.m))
+        if self.deBrujin:
+            self.hurdles = []
+            self.lookUpTable = deBrujin32Bit()
+        else:
+            self.hurdles = np.zeros((2*k + 1, self.m))
         self.initHurdleVectors()
         self.originLanes = {0: 0} if originLanes is None else originLanes 
         if destinationLanes is None:
@@ -37,6 +44,8 @@ class LEAP(ApproximateStringMatching):
         # Store result of edit distance calculation
         self.finalLane = None
         self.finalEnergy = None
+
+        
     
 
     def leapLanePenalty(self, l_, l):
@@ -80,28 +89,38 @@ class LEAP(ApproximateStringMatching):
         for i in range(2 * self.k + 1):
             lane = i - self.k
             if lane <= 0:
-                self.hurdles[i] = [self.match(x, x - lane) for x in range(lane + 1, self.m + 1 + lane)]
+                hurdles = [self.match(x, x - lane) for x in range(lane + 1, self.m + 1 + lane)]
             else:
-                self.hurdles[i] = [self.match(x, x - lane) for x in range(1, self.m + 1)]
+                hurdles = [self.match(x, x - lane) for x in range(1, self.m + 1)]
 
-        print(self.hurdles)
+            if self.deBrujin:
+                hurdlesBits = ['0' if x or x is None else '1' for x in reversed(hurdles)]
+                hurdlesInt = int("".join(hurdlesBits), 2)
+                self.hurdles.append(hurdlesInt)
+            else:
+                self.hurdles[i] = hurdles
+        
 
     
     def verticesToHurdle(self, lane, position):
-        #TODO: Use De Brujin to implement this
         lane = int(lane)
         if position >= self.m - 1:
             return 0
         tempPos = int(position) if position >= 0 else 0
 
-        print("lane", lane, "col", position)
-        while self.hurdles[lane + self.k][tempPos + 1] != 0:
-            print("swim!")
-            tempPos += 1
-            if tempPos >= self.m - 1:
-                break
-        print(tempPos)
-        return tempPos - position
+        if self.deBrujin:
+            shiftBitVec = int(self.hurdles[lane + self.k]) >> tempPos
+            b_LSB = shiftBitVec & (~shiftBitVec + 1)
+            b_LSB *= 0x6EB14F9
+            b_LSB = b_LSB >> 27
+            return self.lookUpTable[b_LSB]
+
+        else:
+            while self.hurdles[lane + self.k][tempPos + 1] != 0:
+                tempPos += 1
+                if tempPos >= self.m - 1:
+                    break
+            return tempPos - position
 
     
     def editDistance(self):
@@ -113,40 +132,26 @@ class LEAP(ApproximateStringMatching):
             if l in self.originLanes:
                 self.start[l+k][0] = self.originLanes[l]
                 length = self.verticesToHurdle(l, self.start[l+k][0])
-                print("vth", length)
                 self.end[l+k][0] = self.start[l+k][0] + length
-        #print(self.start)
-        #print(self.end)
         
         for e in range(1, self.E+1):
             for l in range(-k, k+1):
 
                 for l_ in range(-k, k+1):
-                    #print("l'", l_)
                     e_ = e - self.leapLanePenalty(l_, l)
-                    #print("energy", e_)
                     if e_ >= 0:
                         candidateStart = self.end[l_+k][e_] + self.leapForwardColumn(l_, l, self.start[l_+k][e_])
-
                         if candidateStart > self.start[l+k][e]:
                             candidateStart = self.m if candidateStart > self.m else candidateStart
                             self.start[l+k][e] = candidateStart       
-                print("start")
-                print(self.start)
 
                 length = self.verticesToHurdle(l, self.start[l+k][e])
-
-
                 self.end[l+k][e] = self.start[l+k][e] + length
-                print("end")
-                print(self.end)
-                #print("final", l, e, self.end[l+k][e])
                 if l in self.destinationLanes and self.end[l+k][e] >= self.destinationLanes[l] - 1:
                     if e < finalEnergy:
                         self.finalLane = l
                         self.finalEnergy = e
-                        return True
-        
+                        return True 
         return False
 
 
@@ -163,7 +168,6 @@ class LEAP(ApproximateStringMatching):
 
             for l_ in range(-k, k+1):
                 e_ = e - self.leapLanePenalty(l_, l)
-                print("current", l_, e_)
 
                 if self.end[l_+k][e_] + self.leapForwardColumn(l_, l) == self.start[l+k][e]:
                     l = l_

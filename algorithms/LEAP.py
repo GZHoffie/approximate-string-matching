@@ -45,8 +45,7 @@ class LEAP(ApproximateStringMatching):
         self.finalLane = None
         self.finalEnergy = None
 
-        
-    
+
 
     def leapLanePenalty(self, l_, l):
         """
@@ -67,8 +66,8 @@ class LEAP(ApproximateStringMatching):
         Returns the number of columns the toad moves forward when leaping from lane l_ to l. 
         When l and l_ are the same lane, then the number should just be 1.
         """
-        if self.penalty is not None:
-            return self.penalty(l_, l)
+        if self.forward is not None:
+            return self.forward(l_, l)
         else: # Use default layout
             if l_ == l:
                 return 1 if pos < self.m else 0
@@ -99,6 +98,8 @@ class LEAP(ApproximateStringMatching):
                 self.hurdles.append(hurdlesInt)
             else:
                 self.hurdles[i] = hurdles
+        
+        print(self.hurdles)
         
 
     

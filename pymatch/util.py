@@ -56,6 +56,17 @@ def deBrujin32Bit():
             31, 15, 28, 21, 19, 10, 12,  6,
             14, 27,  9,  5, 26,  8, 25, 24]
 
+
+def deBrujin64Bit():
+    return [0,  1, 48,  2, 57, 49, 28,  3,
+            61, 58, 50, 42, 38, 29, 17,  4,
+            62, 55, 59, 36, 53, 51, 43, 22,
+            45, 39, 33, 30, 24, 18, 12,  5,
+            63, 47, 56, 27, 60, 41, 37, 16,
+            54, 35, 52, 21, 44, 32, 23, 11,
+            46, 26, 40, 15, 34, 20, 31, 10,
+            25, 14, 19,  9, 13,  8,  7,  6]
+
 def bit_not(n, numbits=32):
     return (1 << numbits) - 1 - n
 
@@ -67,9 +78,13 @@ class HurdleMatrix():
         self.k = k
         self.m = len(dna1) # Length of dna1
         self.n = len(dna2) # Length of dna2
+        self.lookUpTable = deBrujin32Bit()
         self.hurdleMatrix = self.calculateHurdleMatrix()
         self.ignoredHurdles = self.preprocessHurdleMatrix()
+
         print(self.hurdleMatrix)
+        self.highways = self.getHighways()
+        print(self.highways)
     
     def _match_str(self, i, j):
         if not 1 <= i <= self.m or not 1 <= j <= self.n:
@@ -78,9 +93,9 @@ class HurdleMatrix():
     
     def _get_hurdles(self, shift):
         if shift <= 0:
-            hurdles = [self._match_str(x, x - shift) for x in range(shift + 1, self.m + 1 + shift)]
+            hurdles = [self._match_str(x, x - shift) for x in range(shift, self.m + 1 + shift)]
         else:
-            hurdles = [self._match_str(x, x - shift) for x in range(1, self.m + 1)]
+            hurdles = [self._match_str(x, x - shift) for x in range(0, self.m + 1)]
         return "".join(hurdles)
     
     def _remove_single_zeros(self, string):
@@ -116,13 +131,16 @@ class HurdleMatrix():
             return p.map(self._get_hurdles, list(range(-self.k, self.k+1)))
     
     def preprocessHurdleMatrix(self):
+        """
+        Remove single zeros and ones, and convert the string to bits.
+        """
         ones = []
         zeros = []
 
         with Pool() as p:
         #    ones = p.map(self._remove_single_ones, list(range(-self.k, self.k+1)))
             for string, occur, i in p.map(self._preprocess, list(range(-self.k, self.k+1))):
-                self.hurdleMatrix[i] = string
+                self.hurdleMatrix[i] = int(string, 2)
                 ones.append(occur)
         
         return ones
@@ -130,8 +148,57 @@ class HurdleMatrix():
         #for i in range(-self.k, self.k+1):
         #    self._remove_single_zeros(i)
         #return ones, zeros
+    
+    def _find_LSB(self, bits, findZero=True):
+        if findZero:
+            b_LSB = ~bits & (bits + 1)
+        else:
+            b_LSB = bits & (~bits + 1)
+        b_LSB *= 0x6EB14F9
+        b_LSB = b_LSB >> 27
+        return self.lookUpTable[b_LSB % 32]
+    
+    def _get_highway(self, shift):
+        print(shift + self.k)
+        bits = self.hurdleMatrix[shift + self.k]
+        print(bits)
+        highways = []
+        currentPos = 0
+        while bits > 0:
+            LSZ = self._find_LSB(bits, findZero=True) # Find first zero
+            print("LSZ", shift, LSZ)
+            if LSZ is None:
+                break
+            currentPos += LSZ # Starting point of highway
+            bits = bits >> LSZ
+            if bits == 0:
+                break
+            nextLSB = self._find_LSB(bits, findZero=False) # Length of highway
+            print("nextLSB", shift, nextLSB)
+            if nextLSB is None:
+                break
+            highways.append((shift, currentPos, nextLSB))
+            currentPos += nextLSB
+            bits = bits >> nextLSB
+        
+        return highways
+    
+    def getHighways(self):
+        highways = []
+        with Pool() as p:
+        #    ones = p.map(self._remove_single_ones, list(range(-self.k, self.k+1)))
+            for h in p.map(self._get_highway, list(range(-self.k, self.k+1))):
+                highways += h
+        
+        return highways
+    
+    
+            
 
-    def find
+
+        
+
+
 
 
 if __name__ == "__main__":

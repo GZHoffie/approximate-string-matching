@@ -72,7 +72,7 @@ def bit_not(n, numbits=32):
 
 
 class HurdleMatrix():
-    def __init__(self, dna1, dna2, k, mismatchCost=None, insertCost=None, deleteCost=None):
+    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None):
         self.dna1 = DNA(dna1)
         self.dna2 = DNA(dna2)
         self.k = k
@@ -80,11 +80,21 @@ class HurdleMatrix():
         self.n = len(dna2) # Length of dna2
         self.lookUpTable = deBrujin32Bit()
         self.hurdleMatrix = self.calculateHurdleMatrix()
-        self.ignoredHurdles = self.preprocessHurdleMatrix()
+        ignoredHurdles = self.preprocessHurdleMatrix()
 
-        print(self.hurdleMatrix)
+
+        if mismatchCost is None:
+            self.mismatchCost = 1
+        else:
+            assert isinstance(mismatchCost, int), "mismatchCost should be an int"
+            self.mismatchCost = mismatchCost
+
+        self.leapCost = leapCost
+        
+
+        #print(self.hurdleMatrix)
         self.highways = self.getHighways()
-        print(self.highways)
+        #print(self.highways)
     
     def _match_str(self, i, j):
         if not 1 <= i <= self.m or not 1 <= j <= self.n:
@@ -104,7 +114,7 @@ class HurdleMatrix():
         while len(index) > 0:
             occurences += index
             string = re.sub('101', '111', string)
-            index = [m.start() for m in re.finditer('101', string)]
+            index = [m.start() + 1 for m in re.finditer('101', string)]
         
         #self.hurdleMatrix[shift + self.k] = string
         return string, occurences
@@ -115,15 +125,16 @@ class HurdleMatrix():
         while len(index) > 0:
             occurences += index
             string = re.sub('010', '000', string)
-            index = [m.start() for m in re.finditer('010', string)]
+            index = [m.start() + 1 for m in re.finditer('010', string)]
         
         #self.hurdleMatrix[shift + self.k] = string
         return string, occurences
     
     def _preprocess(self, shift):
-        string, ones = self._remove_single_ones(self.hurdleMatrix[shift + self.k])
+        string = self.hurdleMatrix[shift + self.k]
+        #string, ones = self._remove_single_ones(string)
         string, _ = self._remove_single_zeros(string)
-        return string, ones, shift + self.k
+        return string, shift + self.k
 
 
     def calculateHurdleMatrix(self):
@@ -134,16 +145,16 @@ class HurdleMatrix():
         """
         Remove single zeros and ones, and convert the string to bits.
         """
-        ones = []
-        zeros = []
+        #ones = []
+        #zeros = []
 
         with Pool() as p:
         #    ones = p.map(self._remove_single_ones, list(range(-self.k, self.k+1)))
-            for string, occur, i in p.map(self._preprocess, list(range(-self.k, self.k+1))):
+            for string, i in p.map(self._preprocess, list(range(-self.k, self.k+1))):
                 self.hurdleMatrix[i] = int(string, 2)
-                ones.append(occur)
+                #ones.append(occur)
         
-        return ones
+        #return ones
 
         #for i in range(-self.k, self.k+1):
         #    self._remove_single_zeros(i)
@@ -159,14 +170,14 @@ class HurdleMatrix():
         return self.lookUpTable[b_LSB % 32]
     
     def _get_highway(self, shift):
-        print(shift + self.k)
+        #print(shift + self.k)
         bits = self.hurdleMatrix[shift + self.k]
-        print(bits)
+        #print(bits)
         highways = []
         currentPos = 0
         while bits > 0:
             LSZ = self._find_LSB(bits, findZero=True) # Find first zero
-            print("LSZ", shift, LSZ)
+            #print("LSZ", shift, LSZ)
             if LSZ is None:
                 break
             currentPos += LSZ # Starting point of highway
@@ -174,7 +185,7 @@ class HurdleMatrix():
             if bits == 0:
                 break
             nextLSB = self._find_LSB(bits, findZero=False) # Length of highway
-            print("nextLSB", shift, nextLSB)
+            #print("nextLSB", shift, nextLSB)
             if nextLSB is None:
                 break
             highways.append((shift, currentPos, nextLSB))
@@ -191,14 +202,6 @@ class HurdleMatrix():
                 highways += h
         
         return highways
-    
-    
-            
-
-
-        
-
-
 
 
 if __name__ == "__main__":

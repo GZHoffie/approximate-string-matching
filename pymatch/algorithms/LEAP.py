@@ -1,4 +1,4 @@
-from util import ApproximateStringMatching, deBrujin32Bit, bit_not
+from pymatch.util import ApproximateStringMatching, deBrujin32Bit, bit_not
 import numpy as np
 
 class LEAP(ApproximateStringMatching):

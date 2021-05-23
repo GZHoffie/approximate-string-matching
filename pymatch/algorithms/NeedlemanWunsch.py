@@ -1,4 +1,4 @@
-from util import ApproximateStringMatching
+from pymatch.util import ApproximateStringMatching
 import numpy as np
 
 class NeedlemanWunsch(ApproximateStringMatching):

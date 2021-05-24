@@ -72,15 +72,15 @@ def bit_not(n, numbits=32):
 
 
 class HurdleMatrix():
-    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None):
+    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None, threshold=3):
         self.dna1 = DNA(dna1)
         self.dna2 = DNA(dna2)
         self.k = k
         self.m = len(dna1) # Length of dna1
         self.n = len(dna2) # Length of dna2
         self.lookUpTable = deBrujin32Bit()
-        self.hurdleMatrix = self.calculateHurdleMatrix()
-        ignoredHurdles = self.preprocessHurdleMatrix()
+        self.hurdleMatrix = [int(s, 2) for s in self.calculateHurdleMatrix()]
+        #ignoredHurdles = self.preprocessHurdleMatrix()
 
 
         if mismatchCost is None:
@@ -92,9 +92,9 @@ class HurdleMatrix():
         self.leapCost = leapCost
         
 
-        #print(self.hurdleMatrix)
-        self.highways = self.getHighways()
-        #print(self.highways)
+        print(self.hurdleMatrix)
+        self.highways = [h for h in self.getHighways() if h[2] >= threshold]
+        print(self.highways)
     
     def _match_str(self, i, j):
         if not 1 <= i <= self.m or not 1 <= j <= self.n:
@@ -175,8 +175,10 @@ class HurdleMatrix():
         #print(bits)
         highways = []
         currentPos = 0
+        tempPos = 0
         while bits > 0:
             LSZ = self._find_LSB(bits, findZero=True) # Find first zero
+            #print(shift, bits)
             #print("LSZ", shift, LSZ)
             if LSZ is None:
                 break
@@ -188,9 +190,14 @@ class HurdleMatrix():
             #print("nextLSB", shift, nextLSB)
             if nextLSB is None:
                 break
-            highways.append((shift, currentPos, nextLSB))
-            currentPos += nextLSB
-            bits = bits >> nextLSB
+            elif nextLSB == 0 and LSZ == 0:
+                tempPos += 32
+                bits = bits >> 32
+            else:
+                highways.append((shift, currentPos, nextLSB + tempPos))
+                currentPos += nextLSB + tempPos
+                tempPos = 0
+                bits = bits >> nextLSB
         
         return highways
     
@@ -205,5 +212,10 @@ class HurdleMatrix():
 
 
 if __name__ == "__main__":
-    hd = HurdleMatrix("ACTAGAACTT", "ACTTAGCACT", 2)
+    import time
+    a = time.time()
+    hd = HurdleMatrix("GAGAACCAATCAGCACAGGGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
+              "GAGAACCAATCAGCACAGTGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
+              2, threshold=3)
+    print("calculate hurdle time:", time.time() - a)
 

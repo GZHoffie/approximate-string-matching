@@ -1,7 +1,7 @@
 from pymatch.util import ApproximateStringMatching, HurdleMatrix
 
 class GASMA(ApproximateStringMatching):
-    def __init__(self, dna1, dna2, k, E, leapCost=None, hurdleCost=1):
+    def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3):
         if len(dna1) > len(dna2):
             # swap the two
             temp = dna1
@@ -9,10 +9,9 @@ class GASMA(ApproximateStringMatching):
             dna2 = temp
         
         super().__init__(dna1, dna2)
-        self.hurdleMatrix = HurdleMatrix(dna1, dna2, k, mismatchCost=hurdleCost, leapCost=leapCost)
+        self.hurdleMatrix = HurdleMatrix(dna1, dna2, k, mismatchCost=hurdleCost, leapCost=leapCost, threshold=threshold)
         self.k = k
-        self.E = E
-        self.highways = self.hurdleMatrix.getHighways()
+        self.highways = self.hurdleMatrix.highways
         self.transformedHighways = self.transformHighways()
         self.findRoute()
 
@@ -143,34 +142,21 @@ class GASMA(ApproximateStringMatching):
             leapCost += leapLanePenalty(currentPosition[0], 0)
             columnAfterLeap = currentPosition[1] - leapForwardColumn(currentPosition[0], 0)
             if columnAfterLeap > 0:
-                hurdleCost += self.hurdleCost * columnAfterLeap
+                hurdleCost += 1 * columnAfterLeap
             route += [(0, 0)]
 
         
         return route, hurdleCost, leapCost
 
-            
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     #g = GASMA("ACTAGAACTT", "ACTTAGCACT", 2, 3)
-    
-    g = GASMA("CTCGTCAATCGAGCCCGGCGACGCTCTTCCAGCGAAACCTGATCCCGATTTTCGACTAAAGCGAAGAATGTGGTTAAGCTCATTGACCCGCTTATTGATG",
-              "CTCGTCAATCGAGCCCGGCGACGCTCTTCCAGCGAAACCTGATCCCGATTTTCGACTAAAGCGAAGAATGTGGTTAAAGCTCATTGACCCGCTTATTGATG",
-              2, 5)
+    import time
+    a = time.time()
+    g = GASMA("GAGAACCAATCAGCACAGGGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
+              "GAGAACCAATCAGCACAGTGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
+              2, threshold=3)
+    print("time:", time.time() - a)
     
     #print(g.findBestHighways())
 

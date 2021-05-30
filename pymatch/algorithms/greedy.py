@@ -1,4 +1,5 @@
 from pymatch.util import ApproximateStringMatching, HurdleMatrix
+import time
 
 class GASMA(ApproximateStringMatching):
     def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3):
@@ -13,21 +14,25 @@ class GASMA(ApproximateStringMatching):
         self.k = k
         self.highways = self.hurdleMatrix.highways
         self.transformedHighways = self.transformHighways()
-        self.findRoute()
-
         self.hurdleCost = 1
         self.leapCost = 1
+        #curr = time.time()
+        #self.editDistance()
+        #print("find route time:", time.time() - curr)
+
+        
 
 
-    def findRoute(self):
+    def editDistance(self):
         bestHighways = self.findBestHighways()
         bestHighways_transformed = [(shift, start + length - 1, length) for shift, start, length in bestHighways]
-        print(bestHighways_transformed)
+        #print(bestHighways_transformed)
         route, hurdleCost, leapCost = self.linkHighways(bestHighways_transformed)
-        print(route)
-        print("hurdle cost:", hurdleCost)
-        print("leap cost:", leapCost)
-        print("total cost:", leapCost + hurdleCost)
+        #print(route)
+        #print("hurdle cost:", hurdleCost)
+        #print("leap cost:", leapCost)
+        #print("total cost:", leapCost + hurdleCost)
+        return leapCost + hurdleCost
 
         
     def transformHighways(self):
@@ -49,7 +54,7 @@ class GASMA(ApproximateStringMatching):
             
             numZeros = bitlist.count(0)
             numHighways = len(L)
-            return numZeros - numHighways
+            return numZeros - 2 * numHighways
         
         L = []
         L_info = []
@@ -111,16 +116,19 @@ class GASMA(ApproximateStringMatching):
         route = [currentPosition]
         hurdleCost = 0
         leapCost = 0
+        colAfterLeap = None
         while numHighways > 0:
             leastHurdleCross = float('inf')
             bestShift = None
             for shift in highwayDict:
                 if len(highwayDict[shift]) == 0:
                     continue
-                hurdleCross = currentPosition[1] - leapForwardColumn(currentPosition[0], shift) - highwayDict[shift][0][0] - 1
+                columnAfterLeap = leapForwardColumn(currentPosition[0], shift) + highwayDict[shift][0][0] + 1
+                hurdleCross = currentPosition[1] - columnAfterLeap
                 if hurdleCross < leastHurdleCross:
                     bestShift = shift
                     leastHurdleCross = hurdleCross
+                    colAfterLeap = columnAfterLeap
             
             #print(leastHurdleCross)
             
@@ -134,29 +142,35 @@ class GASMA(ApproximateStringMatching):
                 bestHighway = highwayDict[bestShift].pop(0)
                 numHighways -= 1
                 highwayEnd = (bestShift, bestHighway[0] - bestHighway[1] + 1)
-                route += [(bestShift, bestHighway[0]), highwayEnd]
+                route += [(bestShift, colAfterLeap), highwayEnd]
             
             currentPosition = highwayEnd
         
+
+        """
         if currentPosition != (0, 0):
             leapCost += leapLanePenalty(currentPosition[0], 0)
             columnAfterLeap = currentPosition[1] - leapForwardColumn(currentPosition[0], 0)
             if columnAfterLeap > 0:
                 hurdleCost += 1 * columnAfterLeap
             route += [(0, 0)]
+        """
 
+        if currentPosition[1] != 0:
+            hurdleCost += currentPosition[1]
         
         return route, hurdleCost, leapCost
 
 
 if __name__ == "__main__":
-    #g = GASMA("ACTAGAACTT", "ACTTAGCACT", 2, 3)
-    import time
-    a = time.time()
-    g = GASMA("GAGAACCAATCAGCACAGGGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
-              "GAGAACCAATCAGCACAGTGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
-              2, threshold=3)
-    print("time:", time.time() - a)
+    g = GASMA("ACTAGAACTT", "ACTTAGCACT", 2, 2)
+    print(g.editDistance())
+    #import time
+    #a = time.time()
+    #g = GASMA("GAGAACCAATCAGCACAGGGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
+    #          "GAGAACCAATCAGCACAGTGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
+    #          2, threshold=3)
+    #print("total time:", time.time() - a)
     
     #print(g.findBestHighways())
 

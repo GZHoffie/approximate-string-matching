@@ -1,4 +1,4 @@
-from pymatch.algorithms import GASMA, NeedlemanWunsch
+from pymatch.algorithms import GASMAShortsighted, NeedlemanWunsch
 import time
 
 test_file = "/Users/garygu/approximate-string-matching/pymatch/test/resource/sample.dataset.seq"
@@ -19,8 +19,8 @@ with open(test_file, "r") as f:
         str2 = f.readline()[1:][:-1]
 
         currTime = time.time()
-        g = GASMA(str1, str2, 3, threshold=3)
-        cost = g.editDistance()
+        g = GASMAShortsighted(str1, str2, 3, threshold=3)
+        cost, _ = g.editDistance()
         GASMATime += time.time() - currTime
 
         currTime = time.time()

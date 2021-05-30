@@ -1,6 +1,7 @@
 import numpy as np
 from multiprocessing import Pool
 import re
+import time
 
 class DNA:
     def __init__(self, string=None):
@@ -79,7 +80,10 @@ class HurdleMatrix():
         self.m = len(dna1) # Length of dna1
         self.n = len(dna2) # Length of dna2
         self.lookUpTable = deBrujin32Bit()
+        #curr = time.time()
+        #print(self.calculateHurdleMatrix())
         self.hurdleMatrix = [int(s, 2) for s in self.calculateHurdleMatrix()]
+        #print("Find hurdle matrix time:", time.time() - curr)
         #ignoredHurdles = self.preprocessHurdleMatrix()
 
 
@@ -92,9 +96,11 @@ class HurdleMatrix():
         self.leapCost = leapCost
         
 
-        print(self.hurdleMatrix)
+        #print(self.hurdleMatrix)
+        #curr = time.time()
         self.highways = [h for h in self.getHighways() if h[2] >= threshold]
-        print(self.highways)
+        #print("Find highway time:", time.time() - curr)
+        #print(self.highways)
     
     def _match_str(self, i, j):
         if not 1 <= i <= self.m or not 1 <= j <= self.n:
@@ -138,20 +144,23 @@ class HurdleMatrix():
 
 
     def calculateHurdleMatrix(self):
+        """
         with Pool() as p:
             return p.map(self._get_hurdles, list(range(-self.k, self.k+1)))
+        """
+        return [self._get_hurdles(i) for i in range(-self.k, self.k+1)]
     
-    def preprocessHurdleMatrix(self):
+    def preprocessHurdleMatrix(self, removeSharedHurdles=False):
         """
         Remove single zeros and ones, and convert the string to bits.
         """
         #ones = []
         #zeros = []
 
-        with Pool() as p:
+        #with Pool() as p:
         #    ones = p.map(self._remove_single_ones, list(range(-self.k, self.k+1)))
-            for string, i in p.map(self._preprocess, list(range(-self.k, self.k+1))):
-                self.hurdleMatrix[i] = int(string, 2)
+        #    for string, i in p.map(self._preprocess, list(range(-self.k, self.k+1))):
+        #        self.hurdleMatrix[i] = int(string, 2)
                 #ones.append(occur)
         
         #return ones
@@ -159,6 +168,20 @@ class HurdleMatrix():
         #for i in range(-self.k, self.k+1):
         #    self._remove_single_zeros(i)
         #return ones, zeros
+        mask = None
+        if removeSharedHurdles:
+            mask = int('1' * (self.m + 1), 2)
+            for shift in range(-self.k, self.k+1):
+                mask = mask & int(self.hurdleMatrix[shift + self.k], 2)
+            
+            mask = list(format(mask, 'b'))
+
+
+        for shift in range(-self.k, self.k+1):
+            string, i = self._preprocess(shift)
+            if removeSharedHurdles:
+                string = "".join([b for (b, m) in zip(string, mask) if m == '0'])
+            self.hurdleMatrix[i] = int(string, 2)
     
     def _find_LSB(self, bits, findZero=True):
         if findZero:
@@ -178,7 +201,7 @@ class HurdleMatrix():
         tempPos = 0
         while bits > 0:
             LSZ = self._find_LSB(bits, findZero=True) # Find first zero
-            #print(shift, bits)
+            #print(shift, format(bits,'b'))
             #print("LSZ", shift, LSZ)
             if LSZ is None:
                 break
@@ -191,22 +214,28 @@ class HurdleMatrix():
             if nextLSB is None:
                 break
             elif nextLSB == 0 and LSZ == 0:
-                tempPos += 32
+                #tempPos += 32
                 bits = bits >> 32
+                highways.append((shift, currentPos, 32))
+                currentPos += 32
+
             else:
-                highways.append((shift, currentPos, nextLSB + tempPos))
-                currentPos += nextLSB + tempPos
-                tempPos = 0
+                highways.append((shift, currentPos, nextLSB))
+                currentPos += nextLSB
                 bits = bits >> nextLSB
         
         return highways
     
     def getHighways(self):
         highways = []
+        """
         with Pool() as p:
         #    ones = p.map(self._remove_single_ones, list(range(-self.k, self.k+1)))
             for h in p.map(self._get_highway, list(range(-self.k, self.k+1))):
                 highways += h
+        """
+        for shift in range(-self.k, self.k+1):
+            highways += self._get_highway(shift)
         
         return highways
 
@@ -214,8 +243,9 @@ class HurdleMatrix():
 if __name__ == "__main__":
     import time
     a = time.time()
-    hd = HurdleMatrix("GAGAACCAATCAGCACAGGGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
-              "GAGAACCAATCAGCACAGTGCACTCTATGTAATTCTCGAGGCGATTGACCGTCTGGTTGCGGGGCTGTGGCAATCTTTTAAGAGGGCCGTGCCATTACTG",
+    hd = HurdleMatrix("CTCGGTCAGACACGGTCAACAGTCAACGGTTTTAGCATGTAAAGGGGTTTATCAAGAGATGATCCCTGCGCCGCTAACATAAGGCTAGGCCACAGGCCCG",
+     "CTCGGTCAGACACGGTCAACAGTCAACGGTTTTAGCATGTAAAGGGGTTTATCAAGAGATGATCACTGCGCCGCTAACATAAGGCTAGGCCACAGGCCCG",
               2, threshold=3)
+    print(hd.highways)
     print("calculate hurdle time:", time.time() - a)
 

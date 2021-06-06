@@ -19,7 +19,7 @@ with open(test_file, "r") as f:
         str2 = f.readline()[1:][:-1]
 
         currTime = time.time()
-        g = GASMAShortsighted(str1, str2, 3, threshold=3)
+        g = GASMAShortsighted(str1, str2, 3, threshold=1)
         cost, _ = g.editDistance()
         GASMATime += time.time() - currTime
 
@@ -30,6 +30,12 @@ with open(test_file, "r") as f:
 
         error += abs(cost - NWcost)
         correct += (cost == NWcost)
+
+        if cost != NWcost:
+            print(str1)
+            print(str2)
+            print("NW Cost:", NWcost)
+            print("GASMA Cost:", cost)
 
         i += 1
         if i >= test_items:

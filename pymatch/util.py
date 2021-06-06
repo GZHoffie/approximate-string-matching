@@ -73,13 +73,14 @@ def bit_not(n, numbits=32):
 
 
 class HurdleMatrix():
-    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None, threshold=3):
+    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None, threshold=3, crossHurdleThreshold=0, debug=False):
         self.dna1 = DNA(dna1)
         self.dna2 = DNA(dna2)
         self.k = k
         self.m = len(dna1) # Length of dna1
         self.n = len(dna2) # Length of dna2
         self.lookUpTable = deBrujin32Bit()
+        self.debug = debug
         #curr = time.time()
         #print(self.calculateHurdleMatrix())
         self.hurdleMatrix = [int(s, 2) for s in self.calculateHurdleMatrix()]
@@ -94,6 +95,8 @@ class HurdleMatrix():
             self.mismatchCost = mismatchCost
 
         self.leapCost = leapCost
+        self.threshold = threshold
+        self.crossHurdleThreshold = crossHurdleThreshold
         
 
         #print(self.hurdleMatrix)
@@ -108,10 +111,14 @@ class HurdleMatrix():
         return "0" if self.dna1.string[int(i-1)] == self.dna2.string[int(j-1)] else "1"
     
     def _get_hurdles(self, shift):
+
         if shift <= 0:
-            hurdles = [self._match_str(x, x - shift) for x in range(shift, self.m + 1 + shift)]
+            hurdles = [self._match_str(x, x - shift) for x in range(shift, self.n + 1 + shift)]
         else:
-            hurdles = [self._match_str(x, x - shift) for x in range(0, self.m + 1)]
+            hurdles = [self._match_str(x, x - shift) for x in range(0, self.n + 1)]
+        
+        if self.debug:
+            print("".join(hurdles))
         return "".join(hurdles)
     
     def _remove_single_zeros(self, string):
@@ -215,17 +222,41 @@ class HurdleMatrix():
                 break
             elif nextLSB == 0 and LSZ == 0:
                 #tempPos += 32
+                if not bits & 1:
+                    highways.append((shift, currentPos, 32))
                 bits = bits >> 32
-                highways.append((shift, currentPos, 32))
                 currentPos += 32
 
             else:
                 highways.append((shift, currentPos, nextLSB))
                 currentPos += nextLSB
                 bits = bits >> nextLSB
+            
+            #print(shift, highways)
         
         return highways
     
+    def _preprocess_highways(self, highways):
+        processed_highways = []
+        tmp = None
+        #highwayHurdles = []
+        for h in highways:
+            if tmp is None:
+                tmp = h
+            elif h[1] - (tmp[1] + tmp[2]) <= self.crossHurdleThreshold:
+                tmp = (tmp[0], tmp[1], tmp[2] + h[2])
+            else:
+                processed_highways += [tmp]
+                tmp = h
+            
+            #print(h, tmp)
+        
+        if tmp is not None:
+            processed_highways += [tmp]
+        
+        return processed_highways
+
+
     def getHighways(self):
         highways = []
         """
@@ -235,17 +266,20 @@ class HurdleMatrix():
                 highways += h
         """
         for shift in range(-self.k, self.k+1):
-            highways += self._get_highway(shift)
-        
+            #print(shift, self._get_highway(shift))
+            highways += self._preprocess_highways(self._get_highway(shift))
+            #print(shift)
+
+        if self.debug:
+            print("highways:", highways)
         return highways
 
 
 if __name__ == "__main__":
     import time
     a = time.time()
-    hd = HurdleMatrix("CTCGGTCAGACACGGTCAACAGTCAACGGTTTTAGCATGTAAAGGGGTTTATCAAGAGATGATCCCTGCGCCGCTAACATAAGGCTAGGCCACAGGCCCG",
-     "CTCGGTCAGACACGGTCAACAGTCAACGGTTTTAGCATGTAAAGGGGTTTATCAAGAGATGATCACTGCGCCGCTAACATAAGGCTAGGCCACAGGCCCG",
-              2, threshold=3)
+    hd = HurdleMatrix("GCAAAGTAACAACAGAGCCCCGGTATTGAGCGAGTAATCCACCCCACTCGATATGCGCTTACGATCCAAGCCTTGCTACTGAACGCAAATCCCCCTGCA", 
+              "GCAAAGTAACAACAGAGCCCCGGTATTGAGCGAGTAATCCACCCCACTCGATATGCGCTTACGATCCAAGCCTTGCTACCTGAACGCAAATCCCCCTGCA",2, threshold=3)
     print(hd.highways)
     print("calculate hurdle time:", time.time() - a)
 

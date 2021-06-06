@@ -19,7 +19,15 @@ class NeedlemanWunsch(ApproximateStringMatching):
                 insert = self.D[i][j-1] + self.insertCost({})
                 match = self.D[i-1][j-1] + self.mismatchCost({"i": i, "j": j})
                 self.D[i][j] = min(insert, delete, match)
+        
         return self.D[self.m][self.n]
+    
+    def SGEditDistance(self):
+        """
+        Semiglobal: end when reaching the end of matrix
+        """
+        self.editDistance()
+        return min(np.min(self.D[:, self.n]), np.min(self.D[self.m, :]))
 
 
     def backtrack(self):
@@ -49,9 +57,10 @@ class NeedlemanWunsch(ApproximateStringMatching):
 
 
 if __name__ == "__main__":
-    prob = NeedlemanWunsch("ACTAGAACTT", "ACTTAGCACT")
+    prob = NeedlemanWunsch("AGTTAAGCGAAACACATATTCCGTCTCGTAGAGCTTGGAATCCAGGACGAAAGTTAGCGGCAGAGGTAATCTCGATCAATCCTTATTTAGCGTAGCTGGT", 
+                           "AGTTAAGCGAAACACATATTCCGTCTCGTAGAGCTTGGAATCCAGGACGAAAGTTAGCGGCAGAGGTAATCTCGATCAATCCTTATTTAGCGTAGCTGG")
     print(prob.editDistance())
     print(prob.D)
-    print(prob)
+    #print(prob)
 
 

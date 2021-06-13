@@ -1,7 +1,7 @@
 from pymatch.algorithms import GASMAShortsighted, NeedlemanWunsch
 import time
 
-test_file = "/Users/garygu/approximate-string-matching/pymatch/test/resource/sample.dataset.seq"
+test_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.dataset.seq"
 test_items = 1000
 
 GASMATime = 0

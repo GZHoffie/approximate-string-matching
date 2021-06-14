@@ -1,7 +1,7 @@
 from pymatch.algorithms import GASMA, NeedlemanWunsch
 import time
 
-test_file = "/Users/garygu/approximate-string-matching/pymatch/test/resource/sample.dataset.seq.0.2"
+test_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.dataset.seq.0.2"
 test_items = 1000
 
 GASMATime = 0
@@ -19,7 +19,7 @@ with open(test_file, "r") as f:
         str2 = f.readline()[1:][:-1]
 
         currTime = time.time()
-        g = GASMA(str1, str2, 5, threshold=2)
+        g = GASMA(str1, str2, 2, threshold=2, crossHurdleThreshold=2)
         cost = g.editDistance()
         GASMATime += time.time() - currTime
 

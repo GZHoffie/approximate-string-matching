@@ -73,7 +73,7 @@ def bit_not(n, numbits=32):
 
 
 class HurdleMatrix():
-    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None, threshold=3, crossHurdleThreshold=0, debug=False):
+    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None, threshold=3, crossHurdleThreshold=1, debug=False):
         self.dna1 = DNA(dna1)
         self.dna2 = DNA(dna2)
         self.k = k
@@ -232,30 +232,35 @@ class HurdleMatrix():
                 currentPos += nextLSB
                 bits = bits >> nextLSB
             
-            #print(shift, highways)
+        #print(shift, highways)
         
-        return highways
-    
-    def _preprocess_highways(self, highways):
-        processed_highways = []
-        tmp = None
-        #highwayHurdles = []
+        temp_highway = (shift, 0, 0)
+        highway_transformed = []
+        hurdles_in_highway = []
         for h in highways:
-            if tmp is None:
-                tmp = h
-            elif h[1] - (tmp[1] + tmp[2]) <= self.crossHurdleThreshold:
-                tmp = (tmp[0], tmp[1], tmp[2] + h[2])
+            #print(h, temp_highway)
+            if temp_highway is None:
+                temp_highway = h
+            elif h[1] - (temp_highway[1] + temp_highway[2]) <= self.crossHurdleThreshold:
+                #print(shift, h[1], temp_highway[1] + temp_highway[2])
+                hurdles_in_highway += list(range(temp_highway[1] + temp_highway[2], h[1]))
+                #print(hurdles_in_highway)
+                temp_highway = (temp_highway[0], temp_highway[1], temp_highway[2] + h[1] - (temp_highway[1] + temp_highway[2]) + h[2])
             else:
-                processed_highways += [tmp]
-                tmp = h
-            
-            #print(h, tmp)
+                highway_transformed += [(temp_highway[0],
+                                         temp_highway[1],
+                                         temp_highway[2],
+                                         hurdles_in_highway)]
+                temp_highway = h
+                hurdles_in_highway = []
         
-        if tmp is not None:
-            processed_highways += [tmp]
+        if temp_highway != (shift, 0, 0):
+            highway_transformed += [(temp_highway[0],
+                                     temp_highway[1],
+                                     temp_highway[2],
+                                     hurdles_in_highway)]
         
-        return processed_highways
-
+        return highway_transformed
 
     def getHighways(self):
         highways = []
@@ -267,7 +272,7 @@ class HurdleMatrix():
         """
         for shift in range(-self.k, self.k+1):
             #print(shift, self._get_highway(shift))
-            highways += self._preprocess_highways(self._get_highway(shift))
+            highways += self._get_highway(shift)
             #print(shift)
 
         if self.debug:
@@ -278,8 +283,8 @@ class HurdleMatrix():
 if __name__ == "__main__":
     import time
     a = time.time()
-    hd = HurdleMatrix("GCAAAGTAACAACAGAGCCCCGGTATTGAGCGAGTAATCCACCCCACTCGATATGCGCTTACGATCCAAGCCTTGCTACTGAACGCAAATCCCCCTGCA", 
-              "GCAAAGTAACAACAGAGCCCCGGTATTGAGCGAGTAATCCACCCCACTCGATATGCGCTTACGATCCAAGCCTTGCTACCTGAACGCAAATCCCCCTGCA",2, threshold=3)
+    hd = HurdleMatrix("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
+              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC",2, threshold=3, debug=True)
     print(hd.highways)
     print("calculate hurdle time:", time.time() - a)
 

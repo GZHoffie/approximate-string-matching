@@ -1,19 +1,19 @@
 from pymatch.algorithms import GASMA
 
 class GASMAShortsighted(GASMA):
-    def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3, sight=3, debug=False):
+    def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3, crossHurdleThreshold=1, sight=3, debug=False):
 
-        appendix = "A" * (threshold + 1)
-        dna1 = appendix + dna1 + appendix
-        dna2 = appendix + dna2 + appendix
-
-        super().__init__(dna1, dna2, k, leapCost, hurdleCost, threshold, debug)
-        self.highways = [(shift, start + length - 1, length) for shift, start, length in self.highways]
+        super().__init__(dna1, dna2, k, leapCost, hurdleCost, threshold, crossHurdleThreshold, debug)
+        self.debug = debug
+        self.highways = [(shift, start + length - 1, length, hurdles) for shift, start, length, hurdles in self.highways]
         self.highways = sorted(self.highways, key=lambda x: x[1], reverse=True)
         if self.debug:
             print("transformed highways:",self.highways)
         self.sight = sight
-        #print(self.highways)
+        self.match = {"dna1": "", "dna2": ""}
+        self.i = 0
+        self.j = 0
+        #print('highways', self.highways)
     
     def editDistance(self):
         def leapForwardColumn(l_, l):
@@ -39,6 +39,19 @@ class GASMAShortsighted(GASMA):
                 return 0
             else:
                 return 1 * abs(l_ - l)
+        
+        def _score(l, current_position):
+            """
+            Determine the score and the cost of a lane l from the current position.
+            """
+            columnAfterLeap = current_position[1] - leapForwardColumn(current_position[0], l[0])
+            leapCost = leapLanePenalty(current_position[0], l[0])
+            hurdleCost = len([hurdle for hurdle in l[3] if hurdle < columnAfterLeap])
+            wayToHighwayCost = format(self.hurdleMatrix.hurdleMatrix[l[0] + self.k], 'b')[self.matrixLength-columnAfterLeap:self.matrixLength-l[1]-1].count('1')
+            effectiveLength = l[2] if columnAfterLeap > l[1] else l[2] - (l[1] - columnAfterLeap + 1)
+            score = effectiveLength - wayToHighwayCost - hurdleCost - leapCost
+            return score, leapCost, hurdleCost + wayToHighwayCost, effectiveLength
+
 
         
         currentPosition = (0, self.n - 1)
@@ -47,32 +60,52 @@ class GASMAShortsighted(GASMA):
         leapCost = 0
         while len(self.highways) > 0:
             bestHighway = 0
-            bestHighwayLength = 0
+            bestHighwayScore = float('-inf')
+            _, lc, hc, bestLength = _score(self.highways[0], currentPosition)
+            bestHighwayCost = (lc, hc)
             for i in range(len(self.highways)):
+                score, this_leap_cost, this_hurdle_cost, length = _score(self.highways[i], currentPosition)
                 if currentPosition[1] - self.highways[i][1] > self.sight:
                     break
-                elif self.highways[i][2] > bestHighwayLength or (self.highways[i][2] == bestHighwayLength and self.highways[i][0] == self.destinationLane):
+                elif score > bestHighwayScore or (score == bestHighwayScore and self.highways[i][0] == self.destinationLane):
                     bestHighway = i
-                    bestHighwayLength = self.highways[i][2]
+                    bestHighwayScore = score
+                    bestHighwayCost = (this_leap_cost, this_hurdle_cost)
+                    bestLength = length
             
-            if bestHighway is None:
-                print("No highway is in sight.")
-            else:
-                chosenHighway = self.highways.pop(bestHighway)
-                if self.debug:
-                    print("chosen", chosenHighway)
-                leapCost += leapLanePenalty(currentPosition[0], chosenHighway[0])
-                currentColumn = currentPosition[1] - leapForwardColumn(currentPosition[0], chosenHighway[0])
-                if currentColumn - 1 > chosenHighway[1]:
-                    #print(currentColumn, chosenHighway[1])
-                    hurdleCost += currentColumn - 1 - chosenHighway[1]
+            chosenHighway = self.highways.pop(bestHighway)
+            leapCost += bestHighwayCost[0]
+            hurdleCost += bestHighwayCost[1]
                 
-                route.append((chosenHighway[0], chosenHighway[1]))
-                currentPosition = (chosenHighway[0], chosenHighway[1] - chosenHighway[2] + 1)
-                route.append(currentPosition)
+            if self.debug:
+                print("chosen", chosenHighway, "cost:", bestHighwayCost, "position:", currentPosition, "length:", bestLength)
+                
+                if chosenHighway[0] < currentPosition[0]:
+                    self.match["dna1"] += '-' * abs(chosenHighway[0] - currentPosition[0]) 
+                    self.match["dna2"] += self.dna2.string[self.j] 
+                    self.j += 1
+                elif chosenHighway[0] > currentPosition[0]:
+                    self.match["dna2"] += '-' * abs(currentPosition[0] - chosenHighway[0]) 
+                    self.match["dna1"] += self.dna1.string[self.i] 
+                    self.i += 1
+                for _ in range(bestLength):
+                    self.match["dna1"] += self.dna1.string[self.i]
+                    self.match["dna2"] += self.dna2.string[self.j] 
+                    self.i += 1
+                    self.j += 1
+                
+                print(self.match["dna1"])
+                print(self.match["dna2"])
+
+                
+                
+            route.append((chosenHighway[0], chosenHighway[1]))
+            currentPosition = (chosenHighway[0], chosenHighway[1] - chosenHighway[2] + 1)
+            route.append(currentPosition)
+            
 
             while len(self.highways) > 0:
-                if self.highways[0][1] - self.highways[0][2] + 1 > currentPosition[1] - leapForwardColumn(currentPosition[0], self.highways[0][0]):
+                if self.highways[0][1] - self.highways[0][2] + 1 >= currentPosition[1] - leapForwardColumn(currentPosition[0], self.highways[0][0]):
                     h = self.highways.pop(0)
                     #print("removed", h)
                 else:
@@ -82,11 +115,16 @@ class GASMAShortsighted(GASMA):
             leapCost += leapLanePenalty(currentPosition[0], self.destinationLane)
             columnAfterLeap = currentPosition[1] - leapForwardColumn(currentPosition[0], self.destinationLane)
             if columnAfterLeap > 0:
-                hurdleCost += 1 * columnAfterLeap
+                hurdleCost += format(self.hurdleMatrix.hurdleMatrix[self.destinationLane + self.k], 'b')[self.matrixLength-columnAfterLeap:self.matrixLength-0-1].count('1')
             route += [(self.destinationLane, 0)]
-        
-        #print("leap cost:", leapCost)
-        #print("hurdle cost:", hurdleCost)
+        if self.debug:
+            print("leap cost:", leapCost)
+            print("hurdle cost:", hurdleCost)
+            self.match["dna1"] += self.dna1.string[self.i:]
+            self.match["dna2"] += self.dna2.string[self.j:]
+            self.match["dna1"] = self.match["dna1"][(self.threshold + 5):-(self.threshold + 5)]
+            self.match["dna2"] = self.match["dna2"][(self.threshold + 5):-(self.threshold + 5)]
+
         return leapCost + hurdleCost, route
         
 
@@ -96,10 +134,13 @@ class GASMAShortsighted(GASMA):
     
 
 if __name__ == "__main__":
-    g = GASMAShortsighted("CGATACCGCAGCCTATCAATAATCGAAAACGGTTCACTGGACACACAGCCCCCAGTCTTCAGAAGGAACGTCATTCCTTGCCTTGGTTGTCGGCGATTAC", 
-              "CGATACCGCAGCCTATCAATAATCGAAAACGGTTCACTGGACACACAGCCCCCAGTCTTCAGAAGGAACGTCATTCCTTGCCTTGGTTGTCGGCGATTA", 2, 2, debug=True)
+    g = GASMAShortsighted("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
+              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", 7, 2, crossHurdleThreshold=1, sight=3, debug=True)
     cost, route = g.editDistance()
     print(cost)
     print(route)
+    print(g.match["dna2"])
+    print(g.match["dna1"])
+    print(g.destinationLane)
     #print(g.editDistance())
         

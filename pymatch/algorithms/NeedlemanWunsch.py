@@ -35,7 +35,7 @@ class NeedlemanWunsch(ApproximateStringMatching):
         j = self.n
         while i > 0 or j > 0:
             if i > 0 and j > 0 and \
-                self.D[i][j] == self.D[i-1][j-1] + self.mismatchCost({"i": i-1, "j": j-1}):
+                self.D[i][j] == self.D[i-1][j-1] + self.mismatchCost({"i": i, "j": j}):
                 # Match with same character
                 self.alignment["dna1"] = self.dna1.string[i-1] + self.alignment["dna1"]
                 self.alignment["dna2"] = self.dna2.string[j-1] + self.alignment["dna2"]
@@ -44,11 +44,12 @@ class NeedlemanWunsch(ApproximateStringMatching):
             elif i > 0 and self.D[i][j] == self.D[i-1][j] + self.deleteCost({}):
                 self.alignment["dna1"] = self.dna1.string[i-1] + self.alignment["dna1"]
                 self.alignment["dna2"] = "-" + self.alignment["dna2"]
-                j -= 1
+                i -= 1
             else:
                 self.alignment["dna1"] = "-" + self.alignment["dna1"]
                 self.alignment["dna2"] = self.dna2.string[j-1] + self.alignment["dna2"]
                 j -= 1
+            #print(self.alignment)
 
 
     def __str__(self):
@@ -57,10 +58,10 @@ class NeedlemanWunsch(ApproximateStringMatching):
 
 
 if __name__ == "__main__":
-    prob = NeedlemanWunsch("AGTTAAGCGAAACACATATTCCGTCTCGTAGAGCTTGGAATCCAGGACGAAAGTTAGCGGCAGAGGTAATCTCGATCAATCCTTATTTAGCGTAGCTGGT", 
-                           "AGTTAAGCGAAACACATATTCCGTCTCGTAGAGCTTGGAATCCAGGACGAAAGTTAGCGGCAGAGGTAATCTCGATCAATCCTTATTTAGCGTAGCTGG")
+    prob = NeedlemanWunsch("CATATTCAACCAAGGCATGCAGTACGGTTCCAGCCCAGCCATCACTGGGAATTTACGGACTCCGGTTTCCACACGGCACAACTTCTATGACGGTACGAAT", 
+              "CATATTCAACCAAGGCATGCAGTACGTTCCAGCCCAGCCATCACTGGGAATTTACGGACTCCGGTTTCCACACGGCACAACTTCTATGACGGTACGAAT")
     print(prob.editDistance())
     print(prob.D)
-    #print(prob)
+    print(prob)
 
 

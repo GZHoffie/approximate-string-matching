@@ -125,7 +125,7 @@ char* generate_candidate_text(
     const uint64_t pattern_length,
     const float error_degree) {
   // Compute nominal number of errors
-  const uint64_t num_errors = ceil(pattern_length * error_degree);
+  const uint64_t num_errors = rand_iid(0, ceil(pattern_length * error_degree));
   // Allocate & init-by-copy candidate text
   char* const candidate_text = malloc(pattern_length+num_errors);
   uint64_t candidate_length = pattern_length;

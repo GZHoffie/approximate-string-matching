@@ -2,30 +2,32 @@ from pymatch.util import ApproximateStringMatching, HurdleMatrix
 import time
 
 class GASMA(ApproximateStringMatching):
-    def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3, crossHurdleThreshold=2, debug=False):
+    def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3, crossHurdleThreshold=1, debug=False):
         if len(dna1) > len(dna2):
             # swap the two
             temp = dna1
             dna1 = dna2
             dna2 = temp
         
-        appendix = "A" * (threshold + 1)
+        appendix = "A" * (threshold + 5)
         dna1 = appendix + dna1 + appendix
         dna2 = appendix + dna2 + appendix
         
         
         super().__init__(dna1, dna2)
         self.destinationLane = - abs(self.m - self.n)
-        assert k >= abs(self.m - self.n), "k is less than the difference in length of" \
-            " the two DNAs"
+        k = max(k, abs(self.m - self.n) + 5)
+        #assert k >= abs(self.m - self.n), "k is less than the difference in length of" \
+        #    " the two DNAs"
         self.hurdleMatrix = HurdleMatrix(dna1, dna2, k, mismatchCost=hurdleCost, leapCost=leapCost, threshold=threshold, crossHurdleThreshold=crossHurdleThreshold, debug=debug)
         self.k = k
         self.highways = self.hurdleMatrix.highways
         self.debug = debug
         #print(self.highways)
-        self.transformedHighways = self.transformHighways()
         self.hurdleCost = 1
         self.leapCost = 1
+        self.matrixLength = len(format(self.hurdleMatrix.hurdleMatrix[0], 'b'))
+        self.threshold = threshold
         #curr = time.time()
         #self.editDistance()
         #print("find route time:", time.time() - curr)
@@ -35,7 +37,7 @@ class GASMA(ApproximateStringMatching):
 
     def editDistance(self):
         bestHighways = self.findBestHighways()
-        bestHighways_transformed = [(shift, start + length - 1, length) for shift, start, length in bestHighways]
+        bestHighways_transformed = [(shift, start + length - 1, length, hurdles) for shift, start, length, hurdles in bestHighways]
         if self.debug:
             print("best highways:", bestHighways_transformed)
         route, hurdleCost, leapCost = self.linkHighways(bestHighways_transformed)
@@ -49,11 +51,11 @@ class GASMA(ApproximateStringMatching):
         
     def transformHighways(self):
         transformedHighways = []
-        for shift, start, length in self.highways:
+        for shift, start, length, hurdles in self.highways:
             bitlist = [1] * (self.n)
             for i in range(length):
                 bitlist[start + i] = 0
-            transformedHighways.append((shift, bitlist))
+            transformedHighways.append((shift, bitlist, len(hurdles)))
         
         return transformedHighways
 
@@ -61,16 +63,17 @@ class GASMA(ApproximateStringMatching):
     def findBestHighways(self):
         def score(L):
             bitlist = [1] * (self.m + 1)
-            for _, l in L:
+            for _, l, _ in L:
                 bitlist = [x & y for x, y in zip(bitlist, l)]
             
             numZeros = bitlist.count(0)
             numHighways = len(L)
-            return numZeros - 2 * numHighways
+            return numZeros - 3 * numHighways# - sum([h[2] for h in L])
         
         L = []
         L_info = []
-        L0 = self.transformedHighways.copy()
+        transformedHighways = self.transformHighways()
+        L0 = transformedHighways.copy()
         L0_info = self.highways.copy()
         while len(L0) > 0:
             currScore = score(L)
@@ -121,9 +124,9 @@ class GASMA(ApproximateStringMatching):
         highwayDict = {}
         for h in highways:
             if h[0] not in highwayDict:
-                highwayDict[h[0]] = [(h[1], h[2])]
+                highwayDict[h[0]] = [(h[1], h[2], h[3])]
             else:
-                highwayDict[h[0]] += [(h[1], h[2])]
+                highwayDict[h[0]] += [(h[1], h[2], h[3])]
         
         for shift in highwayDict:
             highwayDict[shift] = sorted(highwayDict[shift], key=lambda x: x[0], reverse=True)
@@ -140,14 +143,20 @@ class GASMA(ApproximateStringMatching):
             for shift in highwayDict:
                 if len(highwayDict[shift]) == 0:
                     continue
-                columnAfterLeap = leapForwardColumn(currentPosition[0], shift) + highwayDict[shift][0][0] + 1
-                hurdleCross = currentPosition[1] - columnAfterLeap
+                columnAfterLeap = currentPosition[1] - leapForwardColumn(currentPosition[0], shift)
+                #hurdleCross = currentPosition[1] - columnAfterLeap
+                hurdleCross = format(self.hurdleMatrix.hurdleMatrix[shift + self.k], 'b')[self.matrixLength-columnAfterLeap:self.matrixLength-highwayDict[shift][0][0]-1].count('1') + \
+                    len([hurdle for hurdle in highwayDict[shift][0][2] if hurdle < columnAfterLeap])
+                if self.debug:
+                    print('shift', shift, columnAfterLeap, highwayDict[shift][0], hurdleCross)
+                    print(format(self.hurdleMatrix.hurdleMatrix[shift + self.k], 'b')[self.matrixLength-columnAfterLeap:self.matrixLength-highwayDict[shift][0][0]-1])
                 if hurdleCross < leastHurdleCross:
                     bestShift = shift
                     leastHurdleCross = hurdleCross
                     colAfterLeap = columnAfterLeap
             
-            #print(leastHurdleCross)
+            if self.debug:
+                print('position:',currentPosition, 'col after leap:', colAfterLeap, 'best shift:', bestShift, highwayDict[bestShift][0], 'cost:', leastHurdleCross)
             
             if bestShift is None:
                 break
@@ -169,7 +178,7 @@ class GASMA(ApproximateStringMatching):
             leapCost += leapLanePenalty(currentPosition[0], self.destinationLane)
             columnAfterLeap = currentPosition[1] - leapForwardColumn(currentPosition[0], self.destinationLane)
             if columnAfterLeap > 0:
-                hurdleCost += 1 * columnAfterLeap
+                format(self.hurdleMatrix.hurdleMatrix[self.destinationLane + self.k], 'b')[0:columnAfterLeap].count('1')
             route += [(self.destinationLane, 0)]
 
         """
@@ -181,8 +190,8 @@ class GASMA(ApproximateStringMatching):
 
 
 if __name__ == "__main__":
-    g = GASMA("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
-              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", 5, threshold=1, debug=True)
+    g = GASMA("ACTGCGGCCTTCTATATGCATGTTAGTCGCGTGGCAAACGTCTTCGACCCCCTCAAAACGCAGAGTATTCCTTATCTTGCAAGACGACGGAAGGAAGAAC", 
+              "ACTGCGGCCTTCTATATGCATGTTAGTCGCGGGCAAACGTCTTCGACCCCCTCAAAACGCAGAGTATTCCTTATCTTGCAAGACGACGGAAGGAAGAAC", 7, threshold=3, crossHurdleThreshold=0, debug=True)
     print(g.editDistance())
     #import time
     #a = time.time()

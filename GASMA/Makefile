@@ -45,4 +45,4 @@ $(SUBDIRS):
 tools: $(SUBDIRS)
 	$(MAKE) --directory=$@ $(MODE)
 
-.PHONY: $(SUBDIRS) tools
+.PHONY: $(SUBDIRS) tools;

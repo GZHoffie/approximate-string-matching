@@ -47,9 +47,21 @@ class GASMAShortsighted(GASMA):
             columnAfterLeap = current_position[1] - leapForwardColumn(current_position[0], l[0])
             leapCost = leapLanePenalty(current_position[0], l[0])
             hurdleCost = len([hurdle for hurdle in l[3] if hurdle < columnAfterLeap])
-            wayToHighwayCost = format(self.hurdleMatrix.hurdleMatrix[l[0] + self.k], 'b')[self.matrixLength-columnAfterLeap:self.matrixLength-l[1]-1].count('1')
+            
+            shiftRange = range(min(l[0], current_position[0]), max(l[0], current_position[0]) + 1)
+            bitLists = ["0" + format(self.hurdleMatrix.hurdleMatrix[shift + self.k], 'b')[self.matrixLength-(current_position[1] - leapForwardColumn(current_position[0], shift)):self.matrixLength-(l[1] + 1 + leapForwardColumn(shift, l[0]))] for shift in shiftRange]
+            
+            tmpStr = "0" + "1" * len(bitLists[0])
+            bitMask = int(tmpStr, 2)
+            for b in bitLists:
+                
+                bitMask = bitMask & int(b, 2)
+
+            wayToHighwayCost = format(bitMask, 'b').count('1')
             effectiveLength = l[2] if columnAfterLeap > l[1] else l[2] - (l[1] - columnAfterLeap + 1)
-            score = effectiveLength - wayToHighwayCost - hurdleCost - leapCost
+            score = effectiveLength - wayToHighwayCost - hurdleCost - leapCost - leapLanePenalty(l[0], self.destinationLane)
+            if self.debug:
+                print(l, bitLists, score)
             return score, leapCost, hurdleCost + wayToHighwayCost, effectiveLength
 
 
@@ -65,7 +77,7 @@ class GASMAShortsighted(GASMA):
             bestHighwayCost = (lc, hc)
             for i in range(len(self.highways)):
                 score, this_leap_cost, this_hurdle_cost, length = _score(self.highways[i], currentPosition)
-                if currentPosition[1] - self.highways[i][1] > self.sight:
+                if currentPosition[1] - leapForwardColumn(currentPosition[0], self.highways[i][0]) - self.highways[i][1] > self.sight and bestHighwayScore >= 0:
                     break
                 elif score > bestHighwayScore or (score == bestHighwayScore and self.highways[i][0] == self.destinationLane):
                     bestHighway = i
@@ -134,8 +146,8 @@ class GASMAShortsighted(GASMA):
     
 
 if __name__ == "__main__":
-    g = GASMAShortsighted("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
-              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", 7, 2, crossHurdleThreshold=1, sight=3, debug=True)
+    g = GASMAShortsighted("CACACAGAGTCGATCTAAGGCAGGAAAAGGCAGGCATACCTGATCGTCGCAACGTGGTGCGTGCGTCGTGTGAAGGTCAGGATATGTCCCTTCCAACGGA", 
+              "CACACAGAGCTCGATCTAAGGCAGGAAAAGGCAGGCATACCTGATCGTCGCAACGTGGTGCGTGCGCGTGTGAGGTCAGATATGTCCCTTCCAACGA", 7, 0, crossHurdleThreshold=1, sight=3, debug=True)
     cost, route = g.editDistance()
     print(cost)
     print(route)

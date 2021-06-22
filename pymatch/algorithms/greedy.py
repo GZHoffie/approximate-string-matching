@@ -9,7 +9,11 @@ class GASMA(ApproximateStringMatching):
             dna1 = dna2
             dna2 = temp
         
-        appendix = "A" * (threshold + 5)
+        candidate = ["A", "C", "G", "T"]
+        candidate.pop(candidate.index(dna1[0]))
+        if dna2[0] != dna1[0]:
+            candidate.pop(candidate.index(dna2[0]))
+        appendix = candidate[0] * (threshold + 5)
         dna1 = appendix + dna1 + appendix
         dna2 = appendix + dna2 + appendix
         

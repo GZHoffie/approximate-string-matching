@@ -27,7 +27,7 @@ with open(ref_file, "r") as rf:
 
 
             currTime = time.time()
-            g = GASMAShortsighted(str1, str2, 2, crossHurdleThreshold=0, threshold=1, sight=3)
+            g = GASMAShortsighted(str1, str2, 7, crossHurdleThreshold=1, threshold=0, sight=3)
             cost, _ = g.editDistance()
             GASMATime += time.time() - currTime
 
@@ -43,11 +43,11 @@ with open(ref_file, "r") as rf:
             correctDict[NWcost] += (cost == NWcost)
             countDict[NWcost] += 1
 
-            #if cost != NWcost:
-            #    print(str1)
-            #    print(str2)
-            #    print("NW Cost:", NWcost)
-            #    print("GASMA Cost:", cost)
+            if cost != NWcost and NWcost <= 5:
+                print(str1)
+                print(str2)
+                print("NW Cost:", NWcost)
+                print("GASMA Cost:", cost)
 
             i += 1
             if i >= test_items:

@@ -241,7 +241,7 @@ class HurdleMatrix():
             #print(h, temp_highway)
             if temp_highway is None:
                 temp_highway = h
-            elif h[1] - (temp_highway[1] + temp_highway[2]) <= self.crossHurdleThreshold:
+            elif h[1] - (temp_highway[1] + temp_highway[2]) <= self.crossHurdleThreshold and h[2] >= 2:
                 #print(shift, h[1], temp_highway[1] + temp_highway[2])
                 hurdles_in_highway += list(range(temp_highway[1] + temp_highway[2], h[1]))
                 #print(hurdles_in_highway)

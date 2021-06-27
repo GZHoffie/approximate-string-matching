@@ -27,8 +27,13 @@ with open(ref_file, "r") as rf:
 
 
             currTime = time.time()
-            g = GASMAShortsighted(str1, str2, 2, crossHurdleThreshold=0, threshold=1, sight=3)
-            cost, _ = g.editDistance()
+            g1 = GASMAShortsighted(str1, str2, 7, crossHurdleThreshold=0, threshold=2, sight=3)
+            g2 = GASMAShortsighted(str1, str2, 7, crossHurdleThreshold=0, threshold=2, sight=2)
+            g3 = GASMAShortsighted(str1, str2, 7, crossHurdleThreshold=1, threshold=2, sight=3)
+            cost1, _ = g1.editDistance()
+            cost2, _ = g2.editDistance()
+            cost3, _ = g3.editDistance()
+            cost = min(cost1, cost2, cost3)
             GASMATime += time.time() - currTime
 
             #currTime = time.time()

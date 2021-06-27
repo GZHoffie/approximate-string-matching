@@ -13,7 +13,7 @@ class GASMA(ApproximateStringMatching):
         candidate.pop(candidate.index(dna1[0]))
         if dna2[0] != dna1[0]:
             candidate.pop(candidate.index(dna2[0]))
-        appendix = candidate[0] * (threshold + 5)
+        appendix = candidate[0] * (threshold + 7)
         dna1 = appendix + dna1 + appendix
         dna2 = appendix + dna2 + appendix
         
@@ -194,8 +194,8 @@ class GASMA(ApproximateStringMatching):
 
 
 if __name__ == "__main__":
-    g = GASMA("ACTGCGGCCTTCTATATGCATGTTAGTCGCGTGGCAAACGTCTTCGACCCCCTCAAAACGCAGAGTATTCCTTATCTTGCAAGACGACGGAAGGAAGAAC", 
-              "ACTGCGGCCTTCTATATGCATGTTAGTCGCGGGCAAACGTCTTCGACCCCCTCAAAACGCAGAGTATTCCTTATCTTGCAAGACGACGGAAGGAAGAAC", 7, threshold=3, crossHurdleThreshold=0, debug=True)
+    g = GASMA("CAAGTATATCAGCAGGTAGCCAGCCGCCCTTGAACTACAATCTACCGCGATACGCTATAGTACAAGACTCGGGCTAGGCCTCCATTAAGAGGCTGGCTTC", 
+              "CAAGTATATCGCAGGTAGCCAGCCGCCCTTGAACTACAATCTACCGCGATACGCTATAGTACAAGACTCGGGCTAGTGCCTCCATTAAGAGGCTGGCTTC", 7, threshold=3, crossHurdleThreshold=0, debug=True)
     print(g.editDistance())
     #import time
     #a = time.time()

@@ -5,7 +5,7 @@ class GASMAShortsighted(GASMA):
 
         super().__init__(dna1, dna2, k, leapCost, hurdleCost, threshold, crossHurdleThreshold, debug)
         self.debug = debug
-        self.highways = [(shift, start + length - 1, length, hurdles) for shift, start, length, hurdles in self.highways]
+        self.highways = [(shift, start + length, length, hurdles) for shift, start, length, hurdles in self.highways]
         self.highways = sorted(self.highways, key=lambda x: x[1], reverse=True)
         if self.debug:
             print("transformed highways:",self.highways)
@@ -47,26 +47,17 @@ class GASMAShortsighted(GASMA):
             columnAfterLeap = current_position[1] - leapForwardColumn(current_position[0], l[0])
             leapCost = leapLanePenalty(current_position[0], l[0])
             hurdleCost = len([hurdle for hurdle in l[3] if hurdle < columnAfterLeap])
-            
-            shiftRange = range(min(l[0], current_position[0]), max(l[0], current_position[0]) + 1)
-            bitLists = ["0" + format(self.hurdleMatrix.hurdleMatrix[shift + self.k], 'b')[self.matrixLength-(current_position[1] - leapForwardColumn(current_position[0], shift)):self.matrixLength-(l[1] + 1 + leapForwardColumn(shift, l[0]))] for shift in shiftRange]
-            
-            tmpStr = "0" + "1" * len(bitLists[0])
-            bitMask = int(tmpStr, 2)
-            for b in bitLists:
-                
-                bitMask = bitMask & int(b, 2)
+            wayToHighwayCost = format(self.hurdleMatrix.hurdleMatrix[l[0] + self.k], 'b')[self.matrixLength-columnAfterLeap+1:self.matrixLength-l[1]].count('1')
+            effectiveLength = min(columnAfterLeap - (l[1] - l[2]), l[2])#l[2] if columnAfterLeap >= l[1] else l[2] - (l[1] - columnAfterLeap + 1)
+            score = effectiveLength - wayToHighwayCost - hurdleCost - leapCost
 
-            wayToHighwayCost = format(bitMask, 'b').count('1')
-            effectiveLength = l[2] if columnAfterLeap > l[1] else l[2] - (l[1] - columnAfterLeap + 1)
-            score = effectiveLength - wayToHighwayCost - hurdleCost - leapCost - leapLanePenalty(l[0], self.destinationLane)
             if self.debug:
-                print(l, bitLists, score)
+                print(l, score, "length", effectiveLength, "way to highway", wayToHighwayCost, "hurdle", hurdleCost, "leap", leapCost)
             return score, leapCost, hurdleCost + wayToHighwayCost, effectiveLength
 
 
         
-        currentPosition = (0, self.n - 1)
+        currentPosition = (0, self.n)
         route = [currentPosition]
         hurdleCost = 0
         leapCost = 0
@@ -94,17 +85,25 @@ class GASMAShortsighted(GASMA):
                 
                 if chosenHighway[0] < currentPosition[0]:
                     self.match["dna1"] += '-' * abs(chosenHighway[0] - currentPosition[0]) 
-                    self.match["dna2"] += self.dna2.string[self.j] 
-                    self.j += 1
+                    for _ in range(abs(currentPosition[0] - chosenHighway[0])):
+                        self.match["dna2"] += self.dna2.string[self.j] 
+                        self.j += 1
                 elif chosenHighway[0] > currentPosition[0]:
                     self.match["dna2"] += '-' * abs(currentPosition[0] - chosenHighway[0]) 
-                    self.match["dna1"] += self.dna1.string[self.i] 
-                    self.i += 1
+                    for _ in range(abs(currentPosition[0] - chosenHighway[0])):
+                        self.match["dna1"] += self.dna1.string[self.i] 
+                        self.i += 1
                 for _ in range(bestLength):
-                    self.match["dna1"] += self.dna1.string[self.i]
-                    self.match["dna2"] += self.dna2.string[self.j] 
+                    try:
+                        self.match["dna1"] += self.dna1.string[self.i]
+                        self.match["dna2"] += self.dna2.string[self.j] 
+                    except:
+                        pass
+                    
                     self.i += 1
                     self.j += 1
+                    
+                
                 
                 print(self.match["dna1"])
                 print(self.match["dna2"])
@@ -117,7 +116,7 @@ class GASMAShortsighted(GASMA):
             
 
             while len(self.highways) > 0:
-                if self.highways[0][1] - self.highways[0][2] + 1 >= currentPosition[1] - leapForwardColumn(currentPosition[0], self.highways[0][0]):
+                if self.highways[0][1] - self.highways[0][2] >= currentPosition[1] - leapForwardColumn(currentPosition[0], self.highways[0][0]):
                     h = self.highways.pop(0)
                     #print("removed", h)
                 else:
@@ -127,15 +126,15 @@ class GASMAShortsighted(GASMA):
             leapCost += leapLanePenalty(currentPosition[0], self.destinationLane)
             columnAfterLeap = currentPosition[1] - leapForwardColumn(currentPosition[0], self.destinationLane)
             if columnAfterLeap > 0:
-                hurdleCost += format(self.hurdleMatrix.hurdleMatrix[self.destinationLane + self.k], 'b')[self.matrixLength-columnAfterLeap:self.matrixLength-0-1].count('1')
+                hurdleCost += format(self.hurdleMatrix.hurdleMatrix[self.destinationLane + self.k], 'b')[self.matrixLength-columnAfterLeap+1:self.matrixLength-0].count('1')
             route += [(self.destinationLane, 0)]
         if self.debug:
             print("leap cost:", leapCost)
             print("hurdle cost:", hurdleCost)
             self.match["dna1"] += self.dna1.string[self.i:]
             self.match["dna2"] += self.dna2.string[self.j:]
-            self.match["dna1"] = self.match["dna1"][(self.threshold + 5):-(self.threshold + 5)]
-            self.match["dna2"] = self.match["dna2"][(self.threshold + 5):-(self.threshold + 5)]
+            self.match["dna1"] = self.match["dna1"][(self.threshold + 7):-(self.threshold + 7)]
+            self.match["dna2"] = self.match["dna2"][(self.threshold + 7):-(self.threshold + 7)]
 
         return leapCost + hurdleCost, route
         
@@ -146,8 +145,8 @@ class GASMAShortsighted(GASMA):
     
 
 if __name__ == "__main__":
-    g = GASMAShortsighted("CACACAGAGTCGATCTAAGGCAGGAAAAGGCAGGCATACCTGATCGTCGCAACGTGGTGCGTGCGTCGTGTGAAGGTCAGGATATGTCCCTTCCAACGGA", 
-              "CACACAGAGCTCGATCTAAGGCAGGAAAAGGCAGGCATACCTGATCGTCGCAACGTGGTGCGTGCGCGTGTGAGGTCAGATATGTCCCTTCCAACGA", 7, 0, crossHurdleThreshold=1, sight=3, debug=True)
+    g = GASMAShortsighted("TAATGGTCGCCCTGCCCAAACTCCGAATTCATGCGATCCCTTTTCAAGCCTGACTTCATCCTATATATCCCACAAGCCCGGACTGATACGCTCGTGCTGG", 
+              "TAATGGTCGCCCTGCCCAAACTCCGAATCTGCGATCCCTTTTCAAGCCTGACTTCATCCTATATATCCCACAAGCCCGGACTGATACGCTCGTGCGTGG", 7, threshold=2, crossHurdleThreshold=0, sight=2, debug=True)
     cost, route = g.editDistance()
     print(cost)
     print(route)

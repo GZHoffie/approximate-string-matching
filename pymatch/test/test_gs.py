@@ -43,11 +43,11 @@ with open(ref_file, "r") as rf:
             correctDict[NWcost] += (cost == NWcost)
             countDict[NWcost] += 1
 
-            #if cost != NWcost:
-            #    print(str1)
-            #    print(str2)
-            #    print("NW Cost:", NWcost)
-            #    print("GASMA Cost:", cost)
+            if cost != NWcost and NWcost <= 5:
+                print(str1)
+                print(str2)
+                print("NW Cost:", NWcost)
+                print("GASMA Cost:", cost)
 
             i += 1
             if i >= test_items:

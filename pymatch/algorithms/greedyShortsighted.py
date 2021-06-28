@@ -6,7 +6,7 @@ class GASMAShortsighted(GASMA):
 
         super().__init__(dna1, dna2, k, leapCost, hurdleCost, threshold, crossHurdleThreshold, debug)
         self.debug = debug
-        self.highways = [(shift, start + length, length, hurdles) for shift, start, length, hurdles in self.highways]
+        self.highways = [(shift, start + length - 1, length, hurdles) for shift, start, length, hurdles in self.highways]
         self.highways = sorted(self.highways, key=lambda x: x[1], reverse=True)
         if self.debug:
             print("transformed highways:",self.highways)
@@ -123,7 +123,7 @@ class GASMAShortsighted(GASMA):
             
 
             while len(self.highways) > 0:
-                if self.highways[0][1] - self.highways[0][2] >= currentPosition[1] - leapForwardColumn(currentPosition[0], self.highways[0][0]):
+                if self.highways[0][1] - self.highways[0][2] + 1 >= currentPosition[1] - leapForwardColumn(currentPosition[0], self.highways[0][0]):
                     h = self.highways.pop(0)
                     #print("removed", h)
                 else:
@@ -133,7 +133,7 @@ class GASMAShortsighted(GASMA):
             leapCost += leapLanePenalty(currentPosition[0], self.destinationLane)
             columnAfterLeap = currentPosition[1] - leapForwardColumn(currentPosition[0], self.destinationLane)
             if columnAfterLeap > 0:
-                hurdleCost += format(self.hurdleMatrix.hurdleMatrix[self.destinationLane + self.k], 'b')[self.matrixLength-columnAfterLeap+1:self.matrixLength-0].count('1')
+                hurdleCost += format(self.hurdleMatrix.hurdleMatrix[self.destinationLane + self.k], 'b')[self.matrixLength-columnAfterLeap:self.matrixLength-0-1].count('1')
             route += [(self.destinationLane, 0)]
         if self.debug:
             print("leap cost:", leapCost)
@@ -152,8 +152,8 @@ class GASMAShortsighted(GASMA):
     
 
 if __name__ == "__main__":
-    g = GASMAShortsighted("CGCTAATTATGAAAGTTTAGGTTACGTACCAGAGGCGGATGTTTTGGTCTCAGCCAAAACGAAGTTTGGACATCTTTGGACACACGACTATCCAAATATG", 
-              "CGCTAATTATGAAAGTTTAGGTTACGTACCAGAGGCGCATGTTTTGGTCTCAGCCAAAACAAAGTTTGGCACATTGGACACACGACTATCCAAATATG", 2, threshold=2, crossHurdleThreshold=0, sight=3, debug=True)
+    g = GASMAShortsighted("CGTCGACGACCGATCTATCTTGCGAAGCCTTGGTACTCAAGGGGCTGCGTCGGGCTTTAATATGTTTTATTTCGGTCAAATCTGAACTTGTTGGCGCCC", 
+              "GCGTGTCGACCGAGCTATCTTGCGAAGCCTTGGTACTCAAGGGGCTGTGTCGGGCTTTAATATGTTTTATTTCGGTCAAATCTGAACTTGTTGGCGCCCG", 2, threshold=2, crossHurdleThreshold=1, sight=3, debug=True)
     cost, route = g.editDistance()
     print(cost)
     print(route)

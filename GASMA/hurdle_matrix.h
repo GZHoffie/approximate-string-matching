@@ -5,8 +5,15 @@
 #ifndef APPROXIMATE_STRING_MATCHING_HURDLE_MATRIX_H
 #define APPROXIMATE_STRING_MATCHING_HURDLE_MATRIX_H
 
-#include <stdint.h>
 #include <x86intrin.h>
+#include <string>
+
+/**
+ * The maximum length of each string to be processed is 256
+ * If the strings are longer than 256, then we need to use several
+ * strings of length <= 256 to store it.
+ */
+#define _MAX_LENGTH 256
 
 /**
  * The hurdle_matrix class
@@ -15,10 +22,21 @@
  */
 class hurdle_matrix {
 private:
-    int k;
-    bool remove_single_zeros;
+    int k;                       // The k of banded Levenshtein distance
+    bool remove_single_zeros;    // Whether we remove single zeros inside matrix
 
+    __m256i *mat;                // The matrix storing
 
+    /**
+     * Load two DNAs, read and ref, into the class and calculate the
+     * resulting hurdle matrix.
+     *
+     * @param read a string containing only 'A', 'C', 'G' and 'T'
+     * @param ref a string containing only 'A', 'C', 'G' and 'T'
+     * @param shift an integer indicating which lane in the hurdle matrix
+     *     are we considering
+    */
+    __m256i hurdle_info(const std::string &read, const std::string &ref, int shift);
 
 
 public:
@@ -33,7 +51,7 @@ public:
 
     hurdle_matrix(const hurdle_matrix &) = default;
     
-    ~hurdle_matrix() = default;
+    ~hurdle_matrix();
 
     /** 
      * Load two DNAs, read and ref, into the class and calculate the
@@ -42,7 +60,7 @@ public:
      * @param read a string containing only 'A', 'C', 'G' and 'T'
      * @param ref a string containing only 'A', 'C', 'G' and 'T'
     */
-    void load_reads(const char *read, const char *ref);
+    void load_reads(const std::string &read, const std::string &ref);
 
 
 

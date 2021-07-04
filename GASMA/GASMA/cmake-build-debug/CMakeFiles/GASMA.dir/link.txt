@@ -1,1 +1,0 @@
-/usr/bin/c++  -g  -rdynamic CMakeFiles/GASMA.dir/main.cpp.o CMakeFiles/GASMA.dir/hurdle_matrix.cpp.o  -o GASMA 

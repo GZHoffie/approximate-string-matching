@@ -24,8 +24,9 @@ class hurdle_matrix {
 private:
     int k;                       // The k of banded Levenshtein distance
     bool remove_single_zeros;    // Whether we remove single zeros inside matrix
+    bool initialized;            // Whether this matrix is initialized
 
-    __m256i *mat;                // The matrix storing
+    __m256i *mat;                // The matrix storing hurdle information
 
     /**
      * Load two DNAs, read and ref, into the class and calculate the
@@ -61,6 +62,8 @@ public:
      * @param ref a string containing only 'A', 'C', 'G' and 'T'
     */
     void load_reads(const std::string &read, const std::string &ref);
+
+
 
 
 

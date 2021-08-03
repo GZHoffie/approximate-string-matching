@@ -73,7 +73,7 @@ def bit_not(n, numbits=32):
 
 
 class HurdleMatrix():
-    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None, threshold=3, crossHurdleThreshold=1, debug=False):
+    def __init__(self, dna1, dna2, k, mismatchCost=None, leapCost=None, threshold=3, crossHurdleThreshold=1, debug=False, reverse=False):
         self.dna1 = DNA(dna1)
         self.dna2 = DNA(dna2)
         self.k = k
@@ -83,11 +83,11 @@ class HurdleMatrix():
         self.debug = debug
         #curr = time.time()
         #print(self.calculateHurdleMatrix())
-        self.hurdleMatrix = [int(s, 2) for s in self.calculateHurdleMatrix()]
+        self.hurdleMatrix = [int(s, 2) for s in self.calculateHurdleMatrix(reverse=reverse)]
         #print("Find hurdle matrix time:", time.time() - curr)
         #ignoredHurdles = self.preprocessHurdleMatrix()
 
-
+        """
         if mismatchCost is None:
             self.mismatchCost = 1
         else:
@@ -103,19 +103,26 @@ class HurdleMatrix():
         #curr = time.time()
         self.highways = [h for h in self.getHighways() if h[2] >= threshold]
         #print("Find highway time:", time.time() - curr)
-        #print(self.highways)
+        print(self.highways)
+        """
+        
     
     def _match_str(self, i, j):
         if not 1 <= i <= self.m or not 1 <= j <= self.n:
             return "1"
         return "0" if self.dna1.string[int(i-1)] == self.dna2.string[int(j-1)] else "1"
     
-    def _get_hurdles(self, shift):
-
+    def _get_hurdles(self, shift, reverse):
         if shift <= 0:
-            hurdles = [self._match_str(x, x - shift) for x in range(shift, self.n + 1 + shift)]
+            if reverse:
+                hurdles = [self._match_str(x, x - shift) for x in reversed(range(shift, self.n + 1 + shift))]
+            else:
+                hurdles = [self._match_str(x, x - shift) for x in range(shift, self.n + 1 + shift)]
         else:
-            hurdles = [self._match_str(x, x - shift) for x in range(0, self.n + 1)]
+            if reverse:
+                hurdles = [self._match_str(x, x - shift) for x in reversed(range(0, self.n + 1))]
+            else:
+                hurdles = [self._match_str(x, x - shift) for x in range(0, self.n + 1)]
         
         if self.debug:
             print("".join(hurdles))
@@ -150,12 +157,12 @@ class HurdleMatrix():
         return string, shift + self.k
 
 
-    def calculateHurdleMatrix(self):
+    def calculateHurdleMatrix(self, reverse=False):
         """
         with Pool() as p:
             return p.map(self._get_hurdles, list(range(-self.k, self.k+1)))
         """
-        return [self._get_hurdles(i) for i in range(-self.k, self.k+1)]
+        return [self._get_hurdles(i, reverse) for i in range(-self.k, self.k+1)]
     
     def preprocessHurdleMatrix(self, removeSharedHurdles=False):
         """
@@ -280,11 +287,130 @@ class HurdleMatrix():
         return highways
 
 
+
+class HurdleBits:
+    """
+    Utility for GASMAProjection. Records the position of hurdles and 
+    """
+    def __init__(self, dna1: DNA, dna2: DNA, k: int, maxZerosIgnored=1, maxOnesIgnored=1, reverse=True, appendices=True) -> None:
+        if len(dna1) > len(dna2):
+            # swap the two
+            temp = dna1
+            dna1 = dna2
+            dna2 = temp
+        
+        if appendices:
+            candidate = ["A", "C", "G", "T"]
+            candidate.pop(candidate.index(dna1[0]))
+            if dna2[0] != dna1[0]:
+                candidate.pop(candidate.index(dna2[0]))
+            appendix = candidate[0] * (maxZerosIgnored + 5)
+
+            dna1 = appendix + dna1 + appendix
+            dna2 = appendix + dna2 + appendix
+        
+        self.dna1 = DNA(dna1)
+        self.dna2 = DNA(dna2)
+        self.k = k
+        self.m = len(dna1) # Length of dna1
+        self.n = len(dna2) # Length of dna2
+        self.maxZeroIgnored = maxZerosIgnored
+        self.maxOnesIgnored = maxOnesIgnored
+
+        self.hurdles = self.calculateHurdleMatrix(reverse=reverse)
+        self.bits = [int(string, 2) for string in self.hurdles]
+        print("hurdles")
+        for l in self.hurdles:
+            print(l)
+        print("After removing ones")
+        self.bits = self.removeSingleOnes()
+        self.bits = self.removeSingleZeros()
+        for l in self.bits:
+            print(format(l, 'b'))
+
+
+    
+    def _match_str(self, i, j):
+        if not 1 <= i <= self.m or not 1 <= j <= self.n:
+            return "1"
+        return "0" if self.dna1.string[int(i-1)] == self.dna2.string[int(j-1)] else "1"
+    
+    def _get_hurdles(self, shift, reverse):
+        if shift <= 0:
+            if reverse:
+                hurdles = [self._match_str(x, x - shift) for x in reversed(range(shift, self.n + 2 + shift))]
+            else:
+                hurdles = [self._match_str(x, x - shift) for x in range(shift, self.n + 2 + shift)]
+        else:
+            if reverse:
+                hurdles = [self._match_str(x, x - shift) for x in reversed(range(0, self.n + 2))]
+            else:
+                hurdles = [self._match_str(x, x - shift) for x in range(0, self.n + 2)]
+        
+        return "".join(hurdles)
+    
+
+    def calculateHurdleMatrix(self, reverse=False):
+        """
+        with Pool() as p:
+            return p.map(self._get_hurdles, list(range(-self.k, self.k+1)))
+        """
+        return [self._get_hurdles(i, reverse) for i in range(-self.k, self.k+1)]
+    
+    def removeSingleOnes(self):
+        """
+        Remove the single streaks of ones that has length smaller or equal to self.maxOnesIgnored
+        in self.hurdles.
+        """
+        #mark = 0
+        bitsProcessed = self.bits.copy()
+        for l in range(len(bitsProcessed)):
+            mark = -1
+            for i in range(len(self.hurdles[0])):
+                #print(i)
+                if (bitsProcessed[l] >> i) & 1 == 1:
+                    if (i == 0 or (bitsProcessed[l] >> i-1) & 1 == 0):
+                        mark = i
+                elif mark >= 0 and i - mark <= self.maxOnesIgnored:
+                    #print(i, mark)
+                    for j in range(mark, i):
+                        #print(format(1 << j, 'b'))
+                        bitsProcessed[l] = bitsProcessed[l] ^ (1 << j)
+        
+        return bitsProcessed
+    
+    def removeSingleZeros(self):
+        """
+        Remove the single streaks of zeros that has length smaller or equal to self.maxZerosIgnored
+        in self.hurdles.
+        """
+        #mark = 0
+        bitsProcessed = self.bits.copy()
+        for l in range(len(bitsProcessed)):
+            mark = -1
+            for i in range(len(self.hurdles[0])):
+                #print(i)
+                if (bitsProcessed[l] >> i) & 1 == 0:
+                    if (i == 0 or (bitsProcessed[l] >> i-1) & 1 == 1):
+                        mark = i
+                elif mark >= 0 and i - mark <= self.maxOnesIgnored:
+                    #print(i, mark)
+                    for j in range(mark, i):
+                        #print(format(1 << j, 'b'))
+                        bitsProcessed[l] = bitsProcessed[l] ^ (1 << j)
+        
+        return bitsProcessed
+                
+
+    
+
+        
+
 if __name__ == "__main__":
     import time
     a = time.time()
-    hd = HurdleMatrix("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
-              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC",2, threshold=3, debug=True)
-    print(hd.highways)
+    hd = HurdleBits("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
+              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=2,  reverse=True)
+    #print(hd.hurdleMatrix)
     print("calculate hurdle time:", time.time() - a)
 

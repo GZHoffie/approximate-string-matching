@@ -6,6 +6,12 @@ This repository contains experimental scripts of approximate string matching alg
 - [ ] Landau-Vishkin Algorithm (backtracking missing)
 - [x] LEAP
 
+## Idea of Greedy Approximate String Matching Algorithm
+
+1. Starting from the current position, 
+
+
+
 ## Current problems with Greedy ASM Algorithm
 
 1. It is not able to find the optimal path between highways. For example, an optimal match between two DNAs look like the following,

@@ -2,7 +2,7 @@ from pymatch.util import ApproximateStringMatching, HurdleMatrix
 import time
 
 class GASMA(ApproximateStringMatching):
-    def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3, crossHurdleThreshold=1, debug=False):
+    def __init__(self, dna1, dna2, k, leapCost=None, hurdleCost=1, threshold=3, crossHurdleThreshold=1, reverse=False, debug=False):
         if len(dna1) > len(dna2):
             # swap the two
             temp = dna1
@@ -24,9 +24,9 @@ class GASMA(ApproximateStringMatching):
         k = max(k, abs(self.m - self.n) + 5)
         #assert k >= abs(self.m - self.n), "k is less than the difference in length of" \
         #    " the two DNAs"
-        self.hurdleMatrix = HurdleMatrix(dna1, dna2, k, mismatchCost=hurdleCost, leapCost=leapCost, threshold=threshold, crossHurdleThreshold=crossHurdleThreshold, debug=debug)
+        self.hurdleMatrix = HurdleMatrix(dna1, dna2, k, mismatchCost=hurdleCost, leapCost=leapCost, threshold=threshold, crossHurdleThreshold=crossHurdleThreshold, reverse=reverse, debug=debug)
         self.k = k
-        self.highways = self.hurdleMatrix.highways
+        #self.highways = self.hurdleMatrix.highways
         self.debug = debug
         #print(self.highways)
         self.hurdleCost = 1

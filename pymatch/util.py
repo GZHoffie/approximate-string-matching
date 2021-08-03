@@ -2,6 +2,7 @@ import numpy as np
 from multiprocessing import Pool
 import re
 import time
+import gmpy
 
 class DNA:
     def __init__(self, string=None):
@@ -325,6 +326,7 @@ class HurdleBits:
         print("After removing ones")
         self.bits = self.removeSingleOnes()
         self.bits = self.removeSingleZeros()
+        #self.shiftRight(1)
         for l in self.bits:
             print(format(l, 'b'))
 
@@ -400,6 +402,26 @@ class HurdleBits:
                         bitsProcessed[l] = bitsProcessed[l] ^ (1 << j)
         
         return bitsProcessed
+    
+    def shiftRight(self, num):
+        """
+        shift all self.bits to the right by `num` 
+        """
+        self.bits = [b >> num for b in self.bits]
+    
+    def findFirstHighway(self, l, col):
+        """
+        Return the starting point of first highway in lane l and column `col`.
+        """
+        l = l + self.k
+        return gmpy.scan0(self.bits[l] >> col)
+    
+    def getFirstHighwayLength(self, l):
+        """
+        Return the length of first highway in lane l.
+        """
+        return gmpy.scan1(self.bits[l + self.k] >> self.findFirstHighway(l))
+
                 
 
     

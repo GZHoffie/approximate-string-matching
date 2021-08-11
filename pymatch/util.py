@@ -324,10 +324,10 @@ class HurdleBits:
         for l in self.hurdles:
             print(l)
         print("After removing ones")
-        self.bits = self.removeSingleOnes()
-        self.bits = self.removeSingleZeros()
+        self.processedBits = self.removeSingleOnes(self.bits)
+        self.processedBits = self.removeSingleZeros(self.processedBits)
         #self.shiftRight(1)
-        for l in self.bits:
+        for l in self.processedBits:
             print(format(l, 'b'))
 
 
@@ -359,13 +359,13 @@ class HurdleBits:
         """
         return [self._get_hurdles(i, reverse) for i in range(-self.k, self.k+1)]
     
-    def removeSingleOnes(self):
+    def removeSingleOnes(self, bits):
         """
         Remove the single streaks of ones that has length smaller or equal to self.maxOnesIgnored
         in self.hurdles.
         """
         #mark = 0
-        bitsProcessed = self.bits.copy()
+        bitsProcessed = bits.copy()
         for l in range(len(bitsProcessed)):
             mark = -1
             for i in range(len(self.hurdles[0])):
@@ -381,13 +381,13 @@ class HurdleBits:
         
         return bitsProcessed
     
-    def removeSingleZeros(self):
+    def removeSingleZeros(self, bits):
         """
         Remove the single streaks of zeros that has length smaller or equal to self.maxZerosIgnored
         in self.hurdles.
         """
         #mark = 0
-        bitsProcessed = self.bits.copy()
+        bitsProcessed = bits.copy()
         for l in range(len(bitsProcessed)):
             mark = -1
             for i in range(len(self.hurdles[0])):
@@ -408,19 +408,23 @@ class HurdleBits:
         shift all self.bits to the right by `num` 
         """
         self.bits = [b >> num for b in self.bits]
+        self.processedBits = [b >> num for b in self.processedBits]
     
     def findFirstHighway(self, l, col):
         """
         Return the starting point of first highway in lane l and column `col`.
         """
         l = l + self.k
-        return gmpy.scan0(self.bits[l] >> col)
+        #print("looking at", col, format(self.processedBits[l] >> col, "b"))
+        return gmpy.scan0(self.processedBits[l] >> col) + col
     
-    def getFirstHighwayLength(self, l):
+    def getFirstHighwayLength(self, l, col):
         """
         Return the length of first highway in lane l.
         """
-        return gmpy.scan1(self.bits[l + self.k] >> self.findFirstHighway(l))
+        #print(format(self.processedBits[l + self.k], "b"))
+        #print("highway", format(self.processedBits[l + self.k] >> self.findFirstHighway(l, col), "b"))
+        return gmpy.scan1(self.processedBits[l + self.k] >> self.findFirstHighway(l, col))
 
                 
 

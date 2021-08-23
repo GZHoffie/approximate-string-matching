@@ -327,8 +327,30 @@ class HurdleBits:
         self.processedBits = self.removeSingleOnes(self.bits)
         self.processedBits = self.removeSingleZeros(self.processedBits)
         #self.shiftRight(1)
+        self.reversedBits = [int(format(s, "b")[::-1], 2) for s in self.bits]
+        self.reversedProcessedBits = [int(format(s, "b")[::-1], 2) for s in self.processedBits]
+        self.length = len(format(self.bits[0], "b"))
+        #self.shiftRight(1)
         for l in self.processedBits:
             print(format(l, 'b'))
+        print("Reversed")
+        for l in self.reversedBits:
+            print(format(l, 'b'))
+        
+        print(format(self.extractHighway(0, 0), "b"))
+
+    def extractHighway(self, shift, col):
+        """
+        extract the highway at lane `shift` and column `col`.
+        """
+        leftBound = gmpy.scan1(self.processedBits[shift + self.k] >> col)
+        rightBound = gmpy.scan1(self.reversedProcessedBits[shift + self.k] >> (self.length - col))
+        print(leftBound, rightBound)
+        if leftBound < 0 or rightBound < 0:
+            return int("1" * self.length, 2)
+        reconstructHighway = "1" * (self.length - col - leftBound) + "0" * (leftBound + rightBound) + "1" * (col - rightBound)
+        reconstructHighway = int(reconstructHighway, 2) | self.bits[shift + self.k]
+        return reconstructHighway
 
 
     
@@ -373,7 +395,7 @@ class HurdleBits:
                 if (bitsProcessed[l] >> i) & 1 == 1:
                     if (i == 0 or (bitsProcessed[l] >> i-1) & 1 == 0):
                         mark = i
-                elif mark >= 0 and i - mark <= self.maxOnesIgnored:
+                elif mark > 0 and i - mark <= self.maxOnesIgnored:
                     #print(i, mark)
                     for j in range(mark, i):
                         #print(format(1 << j, 'b'))

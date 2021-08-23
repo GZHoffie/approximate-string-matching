@@ -1,6 +1,7 @@
 from pymatch.util import ApproximateStringMatching, HurdleBits
 from pymatch.algorithms import GASMA
 import numpy as np
+import gmpy
 
 
 def leapForwardColumn(l_, l):
@@ -40,6 +41,8 @@ class GASMAProjection(ApproximateStringMatching):
         self.nearestHighways = [0] * (2 * self.k + 1)
         self.sight = sight
         self.destinationLane = - abs(self.m - self.n)
+        self.i = 0
+        self.j = 0
         self.match = {"dna1": "", "dna2": ""}
         
     
@@ -99,71 +102,60 @@ class GASMAProjection(ApproximateStringMatching):
             print(format(self.hurdleBits.processedBits[l], 'b'))
 
 
-    def projectHighway(self, destinationLane, highway, processedHighway):
+    def _updateMatch(self, l, l_, length):
         """
-        Project the highway onto the destination lane
+        Update the match between two strings according to current lane `l`, the lane on the next step `l_`
+        and the length of the highway.
         """
-        print("destination lane", destinationLane)
-        l_, c_ = self.currentPosition
-        if l_ < destinationLane:
-            leapingLanes = list(range(l_ + 1, destinationLane + 1))
+        leapingLanes = abs(l_ - l)
+        if l_ > l:
+            for _ in range(leapingLanes):
+                self.match["dna1"] += "-"
+                self.match["dna2"] += self.dna2.string[self.j]
+                self.j += 1
         else:
-            leapingLanes = list(range(l_ - 1, destinationLane - 1, -1))
-
-        highwayLength = self.hurdleBits.getFirstHighwayLength(l_, c_)
-        print("column", c_, "length", highwayLength)
+            for _ in range(leapingLanes):
+                self.match["dna2"] += "-"
+                self.match["dna1"] += self.dna1.string[self.i]
+                self.i += 1
         
-        bitMask = highway
-        processedBitMask = processedHighway
-        newLength = 0
-        for l in leapingLanes:
-            #bitMask = highway#self.hurdleBits.bits[l_ + self.k] & ((((1 << highwayLength + self.currentPosition[1]) - 1) << 1) + 1)
-            print(format(bitMask, 'b'))
-            #processedBitMask = processedHighway
-            self.hurdleBits.bits[l + self.k] = self.hurdleBits.bits[l + self.k] & (bitMask << leapForwardColumn(l_, l))
-            self.hurdleBits.processedBits[l + self.k] = self.hurdleBits.processedBits[l + self.k] & (processedBitMask << leapForwardColumn(l_, l))
-            c_ += leapForwardColumn(l_, l)
-            #self.hurdleBits.processedBits = self.hurdleBits.removeSingleOnes(self.hurdleBits.processedBits)
-            newLength = self.hurdleBits.getFirstHighwayLength(l, c_)
-            bitMask, processedBitMask = self.extractHighway(l, self.nearestHighways[l + self.k], newLength)
-            #highwayLength = self.hurdleBits.getFirstHighwayLength(l, c_ + leapForwardColumn(l_, l))
-            #mask = 1 << newHighwayLength
-            #self.currentPosition = (l, )
-            l_ = l
-            #self.currentPosition = (l_, c_)
-            self.print()
-        
-        #self.currentPosition = (l_, c_ + newLength)
+        for _ in range(length):
+            self.match["dna1"] += self.dna1.string[self.i]
+            self.match["dna2"] += self.dna2.string[self.j]
+            self.j += 1
+            self.i += 1
 
-            
 
 
     def editDistance(self):
+
+        # Store leap and hurdle costs
+        leapCost = 0
+        hurdleCost = 0
+
+        # Find the first highway
         self.updateNearestHighway()
         lane, highway, processedHighway = self.findBestHighwayNearby()
-        self.currentPosition = (lane, self.currentPosition[1] + self.hurdleBits.getFirstHighwayLength(self.currentPosition[0], self.currentPosition[1]) + leapForwardColumn(self.currentPosition[0], lane))
-        hurdleCost = 0
-        leapCost = leapLanePenalty(self.currentPosition[0], lane)
-        currentPos = (0, 0)
-        while self.currentPosition[1] < self.length - 1 or min(self.nearestHighways) >= self.length:
-            self.updateNearestHighway()
-            lane_, highway_, processedHighway_ = self.findBestHighwayNearby()
-            self.projectHighway(lane_, highway, processedHighway)
+        print(lane, highway, processedHighway)
+
+        highwayLength = self.hurdleBits.getFirstHighwayLength(self.currentPosition[0], self.currentPosition[1])
+        leapCol = leapForwardColumn(self.currentPosition[0], lane)
+        colAfterLeap = self.currentPosition[1] + leapCol
+        
+        leapCost += leapLanePenalty(self.currentPosition[0], lane)
+        self.currentPosition = (lane, colAfterLeap)
+        
+
+
+        if (self.hurdleBits.processedBits[lane + self.k] >> colAfterLeap) & 1 == 0:
+            # We have overlap between the two lanes
+            currHighway = self.hurdleBits.extractHighway(self.currentPosition[0], self.currentPosition[1])
+            _highway = self.hurdleBits.extractHighway(lane, colAfterLeap)
+            _highwayStartCol = gmpy.scan0(_highway)
+            _overlap = format(_highway, 'b')[(self.length-_highwayStartCol):(self.length-colAfterLeap)]
+            overlap = format(currHighway, 'b') [(self.length-_highwayStartCol+leapCol):(self.length-colAfterLeap+leapCol)]
+            print(overlap, _overlap)
             
-            self.currentPosition = (lane_, self.currentPosition[1] + self.hurdleBits.getFirstHighwayLength(lane, self.currentPosition[1]) + leapForwardColumn(lane, lane_))
-            print("res", format(self.hurdleBits.bits[lane_ + self.k], "b")[::-1][(currentPos[1] + leapForwardColumn(lane, lane_)):self.currentPosition[1]])
-            hurdleCost += format(self.hurdleBits.bits[lane_ + self.k], "b")[::-1][(currentPos[1] + leapForwardColumn(lane, lane_)):self.currentPosition[1]].count("1")
-            print("position", self.currentPosition)
-            leapCost += leapLanePenalty(lane, lane_)
-
-            lane, highway, processedHighway = lane_, highway_, processedHighway_
-            currentPos = self.currentPosition
-        #while self.currentPosition[1] != self.length:
-
-        print("hurdle cost:", hurdleCost)
-        print("leap cost:", leapCost)
-
-
 
         
 

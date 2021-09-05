@@ -345,12 +345,13 @@ class HurdleBits:
         """
         leftBound = gmpy.scan1(self.processedBits[shift + self.k] >> col)
         rightBound = gmpy.scan1(self.reversedProcessedBits[shift + self.k] >> (self.length - col))
-        print(leftBound, rightBound)
+        #print(leftBound, rightBound)
         if leftBound < 0 or rightBound < 0:
             return int("1" * self.length, 2)
         reconstructHighway = "1" * (self.length - col - leftBound) + "0" * (leftBound + rightBound) + "1" * (col - rightBound)
-        reconstructHighway = int(reconstructHighway, 2) | self.bits[shift + self.k]
-        return reconstructHighway
+        #reconstructHighway = int(reconstructHighway, 2) | self.bits[shift + self.k]
+        highway = int(reconstructHighway, 2) | self.bits[shift + self.k]
+        return highway
 
 
     
@@ -438,7 +439,7 @@ class HurdleBits:
         """
         l = l + self.k
         #print("looking at", col, format(self.processedBits[l] >> col, "b"))
-        return gmpy.scan0(self.processedBits[l] >> col) + col
+        return gmpy.scan0(self.processedBits[l] >> (col)) + col
     
     def getFirstHighwayLength(self, l, col):
         """

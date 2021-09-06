@@ -44,6 +44,10 @@ class GASMAProjection(ApproximateStringMatching):
         self.i = 0
         self.j = 0
         self.match = {"dna1": "", "dna2": ""}
+
+        # Edit distance
+        self.hurdleCost = 0
+        self.leapCost = 0
         
     
 
@@ -91,7 +95,10 @@ class GASMAProjection(ApproximateStringMatching):
                     bestLane = l
         
         if bestLane is None:
-            bestLane = np.argmin(self.nearestHighways) - self.k
+            l = np.argmin(self.nearestHighways) - self.k
+            length = self.hurdleBits.getFirstHighwayLength(l, currentCol + leapForwardColumn(currentLane, l))
+            highway = self.hurdleBits.extractHighway(l, self.nearestHighways[l + self.k])
+            return l, highway, length
         
         return bestLane, bestHighway[0], bestHighway[1]
     
@@ -107,27 +114,32 @@ class GASMAProjection(ApproximateStringMatching):
 
         # Determine the range of lanes
         if pos[0] > targetLane:
-            leapingLanes = range(targetLane + 1, pos[0])
+            leapingLanes = range(targetLane, pos[0] + 1)
 
         else:
-            leapingLanes = range(pos[0] + 1, targetLane)
+            leapingLanes = range(pos[0], targetLane + 1)
 
         for l in leapingLanes:
             nearestHighwayCol = gmpy.scan0(self.hurdleBits.bits[l + self.k] >> (currentCol + leapForwardColumn(currentLane, l))) + currentCol + leapForwardColumn(currentLane, l)
-            print(l, nearestHighwayCol)
+            #print(l, nearestHighwayCol)
             if nearestHighwayCol < maxCol - leapForwardColumn(l, targetLane):
-                print("small highway found:", l, nearestHighwayCol)
+                
                 length = gmpy.scan1(self.hurdleBits.bits[l + self.k] >> nearestHighwayCol)
+                print("small highway found:", l, nearestHighwayCol, length)
                 #length = self.hurdleBits.getFirstHighwayLength(l, currentCol)
                 #highway, processedHighway = self.extractHighway(l, self.nearestHighways[l + self.k], length)
                 #print(format(highway, "b"))
 
                 #hurdlesToCross = self.nearestHighways[l + self.k] - currentCol - leapForwardColumn(currentLane, l)
-                score = nearestHighwayCol - currentCol - leapForwardColumn(currentLane, l) + length
+                dist = nearestHighwayCol - currentCol - leapForwardColumn(currentLane, l) + leapLanePenalty(currentLane, l)
+                if dist > 2:
+                    score = - dist
+                else:
+                    score = length - dist
                 print(l, score)
                 if score > maxScore:
                     maxScore = score
-                    bestHighway = (nearestHighwayCol, length)
+                    bestHighway = (nearestHighwayCol, (nearestHighwayCol - currentCol - leapForwardColumn(currentLane, l)) + length)
                     bestLane = l
         
 
@@ -135,7 +147,7 @@ class GASMAProjection(ApproximateStringMatching):
         return bestLane, bestHighway
 
 
-    def decideWhereToLeap(self, highwayA, highwayB, laneA, laneB):
+    def decideWhereToLeap(self, highwayA, highwayB, laneA, laneB, areAdjacentLanes=True):
         """
         Given two highways in adjacent lanes, represented by bits, we decide the point where we leap.
         We can either leap at the end of first highway, or the start of the second highway.
@@ -148,12 +160,25 @@ class GASMAProjection(ApproximateStringMatching):
         returns the column number on which to leap from laneA to laneB.
         """
         dColumn = leapForwardColumn(laneA, laneB)
-        choiceA = self.length - gmpy.scan0(int(format(highwayA, "b")[::-1], 2))
-        choiceB = gmpy.scan0(highwayB) - dColumn
+
+        print("dcolumn", dColumn)
+        
+        if areAdjacentLanes:
+            choiceA = self.length - gmpy.scan0(int(format(highwayA, "b")[::-1], 2)) # End of highway A    
+            choiceB = gmpy.scan0(highwayB) - dColumn # Start of highway B
+        else:
+            highwayBReversed = int(format(highwayB, "b")[::-1], 2)
+            choiceA = self.length - (gmpy.scan1(highwayBReversed >> gmpy.scan0(highwayBReversed)) + gmpy.scan0(highwayBReversed)) # last hurdle of highway B
+            choiceB = gmpy.scan1(highwayA >> gmpy.scan0(highwayA)) + gmpy.scan0(highwayA) # First hurdle of highway A
+            
+
+        print("A", choiceA, "B", choiceB)
 
         if choiceA < choiceB:
             return choiceB, choiceB - choiceA, True
         else:
+            if not areAdjacentLanes:
+                return choiceB, 0, False
             overlapA = format(highwayA, "b")[::-1][choiceB:choiceA]
             overlapB = format(highwayB, "b")[::-1][(choiceB+dColumn):(choiceA+dColumn)]
             print("overlaps", overlapA, overlapB)
@@ -186,18 +211,22 @@ class GASMAProjection(ApproximateStringMatching):
             for _ in range(leapingLanes):
                 self.match["dna1"] += "-"
                 self.match["dna2"] += self.hurdleBits.dna2.string[self.j]
+                self.leapCost += 1
                 self.j += 1
         else:
             for _ in range(leapingLanes):
                 self.match["dna2"] += "-"
                 self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
+                self.leapCost += 1
                 self.i += 1
         
         for _ in range(length):
             self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
             self.match["dna2"] += self.hurdleBits.dna2.string[self.j]
+            self.hurdleCost += (self.hurdleBits.dna1.string[self.i] != self.hurdleBits.dna2.string[self.j])
             self.j += 1
             self.i += 1
+            
         
         print(self.match["dna1"])
         print(self.match["dna2"])
@@ -225,7 +254,6 @@ class GASMAProjection(ApproximateStringMatching):
             print("new position,", lane, colAfterLeap)
             # find the next highway
             lane_, highway_, length_ = self.findBestHighwayNearby((lane, colAfterLeap))
-            highwayStartCol_ = gmpy.scan0(highway_)
             if abs(lane - lane_) <= 1:
                 # In adjacent lanes
                 leapColumn, hurdles, _ = self.decideWhereToLeap(highway, highway_, lane, lane_)
@@ -235,25 +263,37 @@ class GASMAProjection(ApproximateStringMatching):
                 print(self.currentPosition)
                 self._updateMatch(lane, lane_, 0)
             else:
-                leapColumn, hurdles, hasOverlap = self.decideWhereToLeap(highway, highway_, lane, lane_)
+                leapColumn, hurdles, hasOverlap = self.decideWhereToLeap(highway, highway_, lane, lane_, areAdjacentLanes=False)
                 print("leaping at column", leapColumn, "has overlap", hasOverlap)
                 if hasOverlap:
                     self._updateMatch(self.currentPosition[0], lane, leapColumn - self.currentPosition[1])
                     self.currentPosition = (lane_, leapColumn + leapForwardColumn(lane, lane_))
+                    self._updateMatch(lane, lane_, 0)
                 else:
                     self._updateMatch(self.currentPosition[0], lane, leapColumn - self.currentPosition[1])
-                    self.currentPosition = (lane, self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane) + length)
+                    self.currentPosition = (lane, leapColumn)
+                    print("current position", self.currentPosition)
+
+                    highwayReversed_ = int(format(highway_, "b")[::-1], 2)
+                    highwayStartCol_ = self.length - (gmpy.scan1(highwayReversed_ >> gmpy.scan0(highwayReversed_)) + gmpy.scan0(highwayReversed_))
+                    print("starting col", highwayStartCol_, gmpy.scan0(highway_))
                     while self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane_) < highwayStartCol_:
                         shortHighwayLane, shortHighway = self.findBestShortHighwayNearby(self.currentPosition, lane_, highwayStartCol_)
+                    
                         if shortHighwayLane is None:
                             break
+                    
                         else:
+                            print("chosen small highway", shortHighwayLane, shortHighway)
                             self._updateMatch(self.currentPosition[0], shortHighwayLane, shortHighway[1])
                             self.currentPosition = (shortHighwayLane, shortHighway[0] + shortHighway[1])
-                            
-                    self._updateMatch(self.currentPosition[0], lane_, highwayStartCol_ - leapForwardColumn(self.currentPosition[1], lane_) - self.currentPosition[1])
-                    self.currentPosition = (lane_, highwayStartCol_)
-            
+
+                    if self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane_) < gmpy.scan0(highway_):
+                        self._updateMatch(self.currentPosition[0], lane_, gmpy.scan0(highway_) - leapForwardColumn(self.currentPosition[1], lane_) - self.currentPosition[1])
+                        self.currentPosition = (lane_, gmpy.scan0(highway_))
+
+            print("hurdle cost", self.hurdleCost)
+            print("leap cost", self.leapCost)
             
             lane, highway, length = lane_, highway_, length_
             colAfterLeap = self.length - gmpy.scan0(int(format(highway, "b")[::-1], 2))#colAfterLeap + length_ + leapForwardColumn(lane, lane_)
@@ -261,7 +301,8 @@ class GASMAProjection(ApproximateStringMatching):
                 
 
 
-        self._updateMatch(self.currentPosition[0], lane, 9)#colAfterLeap - self.currentPosition[1])
+        self._updateMatch(self.currentPosition[0], lane, colAfterLeap - self.currentPosition[1] + self.destinationLane)
+        print(colAfterLeap - self.currentPosition[1])
                 # see if we can find smaller highways in between
 
         leapCost += leapLanePenalty(self.currentPosition[0], lane)
@@ -293,6 +334,6 @@ class GASMAProjection(ApproximateStringMatching):
 
 if __name__ == "__main__":
     g = GASMAProjection("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
-              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=2, sight=4)
+              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=3, sight=3)
     g.editDistance()
 

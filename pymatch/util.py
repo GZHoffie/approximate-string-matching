@@ -324,8 +324,9 @@ class HurdleBits:
         for l in self.hurdles:
             print(l)
         print("After removing ones")
+        
         self.processedBits = self.removeSingleOnes(self.bits)
-        self.processedBits = self.removeSingleZeros(self.processedBits)
+        #self.processedBits = self.removeSingleZeros(self.processedBits) #?
         #self.shiftRight(1)
         self.reversedBits = [int(format(s, "b")[::-1], 2) for s in self.bits]
         self.reversedProcessedBits = [int(format(s, "b")[::-1], 2) for s in self.processedBits]

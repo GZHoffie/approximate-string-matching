@@ -1,8 +1,8 @@
-from pymatch.algorithms import GASMAShortsighted, NeedlemanWunsch
+from pymatch.algorithms import GASMAProjection, NeedlemanWunsch
 import time
 
 test_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.random.dataset.seq"
-test_items = 1000
+test_items = 100
 
 GASMATime = 0
 NWTime = 0
@@ -12,15 +12,19 @@ correct = 0
 with open(test_file, "r") as f:
     i = 0
     while True:
+        print(i)
         line = f.readline()
         if not line:
             break
         str1 = line[1:][:-1]
         str2 = f.readline()[1:][:-1]
 
+        print(str1)
+        print(str2)
+        
         currTime = time.time()
-        g = GASMAShortsighted(str1, str2, 7, 1, crossHurdleThreshold=0, sight=3)
-        cost, _ = g.editDistance()
+        g = GASMAProjection(str1, str2, k=8, sight=3, debug=False)
+        cost = g.editDistance()
         GASMATime += time.time() - currTime
 
         currTime = time.time()
@@ -31,11 +35,10 @@ with open(test_file, "r") as f:
         error += abs(cost - NWcost)
         correct += (cost == NWcost)
 
-        if cost != NWcost and NWcost < 5:
-            print(str1)
-            print(str2)
-            print("NW Cost:", NWcost)
-            print("GASMA Cost:", cost)
+        
+        
+        print("NW Cost:", NWcost)
+        print("GASMA Cost:", cost)
 
         i += 1
         if i >= test_items:

@@ -293,7 +293,7 @@ class HurdleBits:
     """
     Utility for GASMAProjection. Records the position of hurdles and 
     """
-    def __init__(self, dna1: DNA, dna2: DNA, k: int, maxZerosIgnored=1, maxOnesIgnored=1, reverse=True, appendices=True) -> None:
+    def __init__(self, dna1: DNA, dna2: DNA, k: int, maxZerosIgnored=1, maxOnesIgnored=1, reverse=True, appendices=True, debug=False) -> None:
         if len(dna1) > len(dna2):
             # swap the two
             temp = dna1
@@ -320,10 +320,10 @@ class HurdleBits:
 
         self.hurdles = self.calculateHurdleMatrix(reverse=reverse)
         self.bits = [int(string, 2) for string in self.hurdles]
-        print("hurdles")
-        for l in self.hurdles:
-            print(l)
-        print("After removing ones")
+        if debug:
+            for l in self.hurdles:
+                print(l)
+            print("After removing ones")
         
         self.processedBits = self.removeSingleOnes(self.bits)
         #self.processedBits = self.removeSingleZeros(self.processedBits) #?
@@ -332,13 +332,14 @@ class HurdleBits:
         self.reversedProcessedBits = [int(format(s, "b")[::-1], 2) for s in self.processedBits]
         self.length = len(format(self.bits[0], "b"))
         #self.shiftRight(1)
-        for l in self.processedBits:
-            print(format(l, 'b'))
-        print("Reversed")
-        for l in self.reversedBits:
-            print(format(l, 'b'))
+        if debug:
+            for l in self.processedBits:
+                print(format(l, 'b'))
+            print("Reversed")
+            for l in self.reversedBits:
+                print(format(l, 'b'))
         
-        print(format(self.extractHighway(0, 0), "b"))
+            print(format(self.extractHighway(0, 0), "b"))
 
     def extractHighway(self, shift, col):
         """

@@ -1,7 +1,7 @@
 from pymatch.algorithms import NeedlemanWunsch
 
 test_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.random.dataset.seq"
-test_items = 20000
+test_items = 100000
 i = 0
 
 with open(test_file, "r") as f:

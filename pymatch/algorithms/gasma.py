@@ -181,7 +181,9 @@ class GASMAProjection(ApproximateStringMatching):
             firstHurdle = max(self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], laneA), gmpy.scan0(highwayA))
             choiceB = gmpy.scan1(highwayA >> firstHurdle) + firstHurdle # Before the First hurdle of highway A
         
-
+        minRequirement = self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], laneA)
+        choiceA = max(minRequirement, choiceA)
+        choiceB = max(minRequirement, choiceB)
         #choiceA = max(self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], laneA), )
         if self.debug:
             print("A", choiceA, "B", choiceB)
@@ -230,7 +232,7 @@ class GASMAProjection(ApproximateStringMatching):
         if l_ < l:
             for _ in range(leapingLanes):
                 if self.j >= len(self.hurdleBits.dna2.string):
-                    exit(1)
+                    break#exit(1)
                 self.match["dna1"] += "-"
                 self.match["dna2"] += self.hurdleBits.dna2.string[self.j]
                 self.leapCost += 1
@@ -239,7 +241,7 @@ class GASMAProjection(ApproximateStringMatching):
         else:
             for _ in range(leapingLanes):
                 if self.i >= len(self.hurdleBits.dna1.string):
-                    exit(1)
+                    break#exit(1)
                 self.match["dna2"] += "-"
                 self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
                 self.leapCost += 1
@@ -248,9 +250,9 @@ class GASMAProjection(ApproximateStringMatching):
         
         for _ in range(length):
             if self.j >= len(self.hurdleBits.dna2.string):
-                exit(1)
+                break#exit(1)
             if self.i >= len(self.hurdleBits.dna1.string):
-                exit(1)
+                break#exit(1)
             self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
             self.match["dna2"] += self.hurdleBits.dna2.string[self.j]
             self.hurdleCost += (self.hurdleBits.dna1.string[self.i] != self.hurdleBits.dna2.string[self.j])
@@ -383,7 +385,7 @@ class GASMAProjection(ApproximateStringMatching):
             
 
 if __name__ == "__main__":
-    g = GASMAProjection("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
-              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=3, sight=3, debug=True)
+    g = GASMAProjection("AACTTGCACATCAATGGGGGCTGAGGGGGTTTTCTGTATCCTGGTGAGATCGTTGGCACATATGCGCCTCGAACGATTGAGTGGTCAACCCCCCATTGAT", 
+              "AACGCACATCAATGGGGCCTGAGGGGGTACTTTTGTATCATGGTGAGATCGATGGCACCTATGCGCTCGAACGATTTCAGGTGGTGGCAAACCCCCCATTGAT", k=3, sight=3, debug=True)
     g.editDistance()
 

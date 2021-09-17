@@ -1,9 +1,9 @@
-from pymatch.algorithms import GASMAShortsighted, NeedlemanWunsch
+from pymatch.algorithms import GASMAProjection, NeedlemanWunsch
 import time
 
 test_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.random.dataset.seq"
-ref_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.random.dataset.seq.out"
-test_items = 20000
+ref_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/nw.txt"
+test_items = 10000
 
 GASMATime = 0
 NWTime = 0
@@ -27,12 +27,13 @@ with open(ref_file, "r") as rf:
 
 
             currTime = time.time()
-            g1 = GASMAShortsighted(str1, str2, 2, crossHurdleThreshold=0, threshold=1, sight=3)
-            g2 = GASMAShortsighted(str1, str2, 2, crossHurdleThreshold=0, threshold=1, sight=5)
-            g3 = GASMAShortsighted(str1, str2, 2, crossHurdleThreshold=1, threshold=1, sight=3)
-            cost1, _ = g1.editDistance()
-            cost2, _ = g1.editDistance()
-            cost3, _ = g1.editDistance()
+            g1 = GASMAProjection(str1, str2, k=2, sight=7, debug=False)
+            g2 = GASMAProjection(str1, str2, k=2, sight=7, maxZerosIgnored=2, debug=False)
+            g3 = GASMAProjection(str1, str2, k=2, sight=7, skipHurdle=True, debug=False)
+
+            cost1 = g1.editDistance()
+            cost2 = g2.editDistance()
+            cost3 = g3.editDistance()
             cost = min(cost1, cost2, cost3)
             GASMATime += time.time() - currTime
 

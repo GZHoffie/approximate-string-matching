@@ -23,8 +23,12 @@ with open(test_file, "r") as f:
         print(str2)
         
         currTime = time.time()
-        g = GASMAProjection(str1, str2, k=8, sight=5, debug=False)
-        cost = g.editDistance()
+        g1 = GASMAProjection(str1, str2, k=2, sight=7, debug=False)
+        g2 = GASMAProjection(str1, str2, k=2, maxZerosIgnored=2, debug=False)
+
+        cost1 = g1.editDistance()
+        cost2 = g2.editDistance()
+        cost = min(cost1, cost2)
         GASMATime += time.time() - currTime
 
         currTime = time.time()

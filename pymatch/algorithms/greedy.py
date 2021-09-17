@@ -26,7 +26,7 @@ class GASMA(ApproximateStringMatching):
         #    " the two DNAs"
         self.hurdleMatrix = HurdleMatrix(dna1, dna2, k, mismatchCost=hurdleCost, leapCost=leapCost, threshold=threshold, crossHurdleThreshold=crossHurdleThreshold, reverse=reverse, debug=debug)
         self.k = k
-        #self.highways = self.hurdleMatrix.highways
+        self.highways = self.hurdleMatrix.highways
         self.debug = debug
         #print(self.highways)
         self.hurdleCost = 1
@@ -195,8 +195,8 @@ class GASMA(ApproximateStringMatching):
 
 
 if __name__ == "__main__":
-    g = GASMA("CAAGTATATCAGCAGGTAGCCAGCCGCCCTTGAACTACAATCTACCGCGATACGCTATAGTACAAGACTCGGGCTAGGCCTCCATTAAGAGGCTGGCTTC", 
-              "CAAGTATATCGCAGGTAGCCAGCCGCCCTTGAACTACAATCTACCGCGATACGCTATAGTACAAGACTCGGGCTAGTGCCTCCATTAAGAGGCTGGCTTC", 7, threshold=3, crossHurdleThreshold=0, debug=True)
+    g = GASMA("TCGATTCGCCCTCACTCAGAACGAGGGGCTTCCCCAATGGCAGGCTCGATGACCATAGGGGCTTTCTTAGGGGAATTGCTGAATCCTCTGTGATCTACTC", 
+              "TCGATTCCCTCACTCAGAACGAGGGCTTCCCCTAGCAGGGCTCGATGACCATTAGGGGCTTTCTTATGCGGGAATTGCTGCAATCTTGTGATGCTACTC", 7, threshold=3, crossHurdleThreshold=0, debug=True)
     print(g.editDistance())
     #import time
     #a = time.time()

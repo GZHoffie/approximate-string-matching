@@ -31,12 +31,12 @@ def leapLanePenalty(l_, l):
 
 
 class GASMAProjection(ApproximateStringMatching):
-    def __init__(self, dna1, dna2, k, mismatchCost=None, insertCost=None, deleteCost=None, sight=3, debug=False):
+    def __init__(self, dna1, dna2, k, mismatchCost=None, insertCost=None, deleteCost=None, sight=3, debug=False, maxOnesIgnored=1, maxZerosIgnored=1, skipHurdle=False):
         super().__init__(dna1, dna2, mismatchCost=mismatchCost, insertCost=insertCost, deleteCost=deleteCost)
 
-        k = max(k, abs(len(self.dna1.string) - len(self.dna2.string)) + 2)
+        k = max(k, abs(len(self.dna1.string) - len(self.dna2.string)) + 3)
 
-        self.hurdleBits = HurdleBits(dna1=dna1, dna2=dna2, k=k, maxOnesIgnored=1, debug=debug)
+        self.hurdleBits = HurdleBits(dna1=dna1, dna2=dna2, k=k, maxOnesIgnored=maxOnesIgnored, maxZerosIgnored=maxZerosIgnored, debug=debug, skipHurdle=skipHurdle)
         #self.hurdleBits.shiftRight(1)
         self.length = len(format(self.hurdleBits.bits[0], 'b'))
         self.currentPosition = (0, 1)
@@ -95,14 +95,14 @@ class GASMAProjection(ApproximateStringMatching):
                     print(format(highway, "b"), length)
 
                 hurdlesToCross = self.nearestHighways[l + self.k] - currentCol - leapForwardColumn(currentLane, l)
-                distToDestination = 0#self.currentPosition[1]
+                distToDestination = 0#self.currentPosition[1]/self.length
                 if self.currentPosition[1] > (self.length) / 2:
                     distToDestination = 1
-                score = gmpy.scan1(highway >> gmpy.scan0(highway)) - leapLanePenalty(currentLane, l) -\
-                    (leapLanePenalty(l, self.destinationLane) - leapLanePenalty(currentLane, self.destinationLane)) * distToDestination - hurdlesToCross
+                score = format(highway >> (currentCol + leapForwardColumn(currentLane, l)), "b").count("0") -\
+                    (leapLanePenalty(l, self.destinationLane) - leapLanePenalty(currentLane, self.destinationLane)) * distToDestination - leapLanePenalty(currentLane, l) - hurdlesToCross
                 if self.debug:
                     print("highway on lane", l, "score:", score)
-                if score > maxScore:
+                if score > maxScore or (score == maxScore and leapLanePenalty(currentLane, l) < leapLanePenalty(currentLane, bestLane)):
                     maxScore = score
                     bestHighway = (highway, length)
                     bestLane = l
@@ -127,10 +127,10 @@ class GASMAProjection(ApproximateStringMatching):
 
         # Determine the range of lanes
         if pos[0] > targetLane:
-            leapingLanes = range(targetLane - 1, pos[0] + 2)
+            leapingLanes = range(max(targetLane - 1, -self.k), min(pos[0] + 2, self.k + 1))
 
         else:
-            leapingLanes = range(pos[0] - 1, targetLane + 2)
+            leapingLanes = range(max(pos[0] - 1, -self.k), min(targetLane + 2, self.k + 1))
 
         for l in leapingLanes:
             nearestHighwayCol = gmpy.scan0(self.hurdleBits.bits[l + self.k] >> (currentCol + leapForwardColumn(currentLane, l))) + currentCol + leapForwardColumn(currentLane, l)
@@ -145,14 +145,18 @@ class GASMAProjection(ApproximateStringMatching):
                 #print(format(highway, "b"))
 
                 #hurdlesToCross = self.nearestHighways[l + self.k] - currentCol - leapForwardColumn(currentLane, l)
-                dist = nearestHighwayCol - currentCol - leapForwardColumn(currentLane, l) + leapLanePenalty(currentLane, l)
-                if dist > 2:
-                    score = - dist
+                dist = nearestHighwayCol - currentCol - leapForwardColumn(currentLane, l) + leapLanePenalty(currentLane, l) * 0.5
+                if pos[0] > targetLane:
+                    isOutsideBoundary = (l < targetLane or l > pos[0])
                 else:
-                    score = length - dist
+                    isOutsideBoundary = (l < pos[0] or l > targetLane)
+                if dist > 2:
+                    score = - dist - isOutsideBoundary * 2
+                else:
+                    score = length - dist - isOutsideBoundary * 2
                 if self.debug:
                     print(l, score, "dist", dist)
-                if score > maxScore:
+                if score > maxScore or (score == maxScore and leapLanePenalty(currentLane, l) < leapLanePenalty(currentLane, bestLane)):
                     maxScore = score
                     bestHighway = (nearestHighwayCol, nearestHighwayCol + length)
                     bestLane = l
@@ -234,7 +238,7 @@ class GASMAProjection(ApproximateStringMatching):
         if l_ < l:
             for _ in range(leapingLanes):
                 if self.j >= len(self.hurdleBits.dna2.string):
-                    exit(1)
+                    break
                 self.match["dna1"] += "-"
                 self.match["dna2"] += self.hurdleBits.dna2.string[self.j]
                 self.leapCost += 1
@@ -243,7 +247,7 @@ class GASMAProjection(ApproximateStringMatching):
         else:
             for _ in range(leapingLanes):
                 if self.i >= len(self.hurdleBits.dna1.string):
-                    exit(1)
+                    break
                 self.match["dna2"] += "-"
                 self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
                 self.leapCost += 1
@@ -264,9 +268,9 @@ class GASMAProjection(ApproximateStringMatching):
         
         for _ in range(length):
             if self.j >= len(self.hurdleBits.dna2.string):
-                exit(1)
+                break
             if self.i >= len(self.hurdleBits.dna1.string):
-                exit(1)
+                break
             self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
             self.match["dna2"] += self.hurdleBits.dna2.string[self.j]
             self.hurdleCost += (self.hurdleBits.dna1.string[self.i] != self.hurdleBits.dna2.string[self.j])
@@ -304,6 +308,7 @@ class GASMAProjection(ApproximateStringMatching):
 
         while colAfterLeap < self.length - 1 and self.currentPosition[1] < self.length - 1:
             if self.debug:
+                print(format(highway, "b"))
                 print("new position,", lane, colAfterLeap)
             # find the next highway
             lane_, highway_, length_ = self.findBestHighwayNearby((lane, colAfterLeap))
@@ -343,7 +348,7 @@ class GASMAProjection(ApproximateStringMatching):
                     highwayStartCol_ = self.length - (gmpy.scan1(highwayReversed_ >> gmpy.scan0(highwayReversed_)) + gmpy.scan0(highwayReversed_))
                     if self.debug:
                         print("starting col", highwayStartCol_, gmpy.scan0(highway_))
-                    while self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane_) < highwayStartCol_:
+                    while self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane_) < highwayStartCol_  and self.currentPosition[1] < self.length - 1:
                         shortHighwayLane, shortHighway = self.findBestShortHighwayNearby(self.currentPosition, lane_, highwayStartCol_)
                     
                         if shortHighwayLane is None:
@@ -355,11 +360,14 @@ class GASMAProjection(ApproximateStringMatching):
                             newPosition = (shortHighwayLane, shortHighway[1])
                             self._updateMatch(self.currentPosition, newPosition, leapType="before")
                             self.currentPosition = newPosition
+                            if self.currentPosition[1] >= self.length - 1:
+                                break
                         
                         if self.debug:
                             print("current position", self.currentPosition)
 
-                    if self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane_) < gmpy.scan0(highway_) or self.currentPosition[0] != lane_:
+                    if (self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane_) < gmpy.scan0(highway_) or self.currentPosition[0] != lane_) and self.currentPosition[1] < self.length - 1:
+                        #print(format(highway_, "b"))
                         newPosition = (lane_, max(gmpy.scan0(highway_), self.currentPosition[1] + leapForwardColumn(self.currentPosition[0], lane_)))
                         self._updateMatch(self.currentPosition, newPosition, leapType="before")
                         self.currentPosition = newPosition
@@ -409,7 +417,7 @@ class GASMAProjection(ApproximateStringMatching):
             
 
 if __name__ == "__main__":
-    g = GASMAProjection("CGCACAGGTCACCGAGAGTGCATTAGATTGTCACCGGTCGCCTTAACAGCGTGGTTATTACGGGAACTTTCCAAAAAGATTTGGGGCTCAATTGGAGATG", 
-              "CGGCACAGGTCCGCGCGAGAAGTCATTAGATTGTCACCGGTCGCCCTAACAGGTGGTTATAGGGATTCCAAAAAGGATTTGGGGCGTTCAATTGAAGATG", k=8, sight=5, debug=True)
+    g = GASMAProjection("TCAGGCGCGCACTCAAGTCCAGAGATGCATAACCGAGCCCGGGGTTGGTATAGTTTGCCGCGTGTGGGTATCGGAGGGACGACCTACGGGCTCAGAGAGC", 
+              "TCAGGCGCAGCACTCAAGTCCAGAGATGCATAACCGAGCCCGGGGTTGGTATAGTTTGACCGTGTGGGTATCGGAGGGACGACCTACGGGCTCAGGAGC", k=2, sight=7, maxZerosIgnored=2, debug=True, skipHurdle=True)
     g.editDistance()
 

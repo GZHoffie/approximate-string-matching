@@ -88,7 +88,7 @@ class HurdleMatrix():
         #print("Find hurdle matrix time:", time.time() - curr)
         #ignoredHurdles = self.preprocessHurdleMatrix()
 
-        """
+
         if mismatchCost is None:
             self.mismatchCost = 1
         else:
@@ -104,8 +104,8 @@ class HurdleMatrix():
         #curr = time.time()
         self.highways = [h for h in self.getHighways() if h[2] >= threshold]
         #print("Find highway time:", time.time() - curr)
-        print(self.highways)
-        """
+        #print(self.highways)
+
         
     
     def _match_str(self, i, j):
@@ -293,7 +293,7 @@ class HurdleBits:
     """
     Utility for GASMAProjection. Records the position of hurdles and 
     """
-    def __init__(self, dna1: DNA, dna2: DNA, k: int, maxZerosIgnored=1, maxOnesIgnored=1, reverse=True, appendices=True, debug=False) -> None:
+    def __init__(self, dna1: DNA, dna2: DNA, k: int, maxZerosIgnored=1, maxOnesIgnored=1, reverse=True, appendices=True, debug=False, skipHurdle=False) -> None:
         if len(dna1) > len(dna2):
             # swap the two
             temp = dna1
@@ -315,7 +315,7 @@ class HurdleBits:
         self.k = k
         self.m = len(dna1) # Length of dna1
         self.n = len(dna2) # Length of dna2
-        self.maxZeroIgnored = maxZerosIgnored
+        self.maxZerosIgnored = maxZerosIgnored
         self.maxOnesIgnored = maxOnesIgnored
 
         self.hurdles = self.calculateHurdleMatrix(reverse=reverse)
@@ -326,7 +326,8 @@ class HurdleBits:
             print("After removing ones")
         
         self.processedBits = self.removeSingleZeros(self.bits)
-        #self.processedBits = self.removeSingleOnes(self.processedBits)
+        if skipHurdle:
+            self.processedBits = self.removeSingleOnes(self.processedBits)
         #self.processedBits = self.removeSingleZeros(self.processedBits) #?
         #self.shiftRight(1)
         self.reversedBits = [int(format(s, "b")[::-1], 2) for s in self.bits]
@@ -421,11 +422,13 @@ class HurdleBits:
                 if (bitsProcessed[l] >> i) & 1 == 0:
                     if (i == 0 or (bitsProcessed[l] >> i-1) & 1 == 1):
                         mark = i
-                elif mark >= 0 and i - mark <= self.maxOnesIgnored:
+                        #print(mark)
+                elif mark >= 0 and i - mark <= self.maxZerosIgnored:
                     #print(i, mark)
                     for j in range(mark, i):
                         #print(format(1 << j, 'b'))
-                        bitsProcessed[l] = bitsProcessed[l] ^ (1 << j)
+                        bitsProcessed[l] = bitsProcessed[l] | (1 << j)
+                    mark = i
         
         return bitsProcessed
     
@@ -461,8 +464,8 @@ class HurdleBits:
 if __name__ == "__main__":
     import time
     a = time.time()
-    hd = HurdleBits("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
-              "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=2,  reverse=True)
+    hd = HurdleBits("TCGATTCGCCCTCACTCAGAACGAGGGGCTTCCCCAATGGCAGGCTCGATGACCATAGGGGCTTTCTTAGGGGAATTGCTGAATCCTCTGTGATCTACTC", 
+              "TCGATTCCCTCACTCAGAACGAGGGCTTCCCCTAGCAGGGCTCGATGACCATTAGGGGCTTTCTTATGCGGGAATTGCTGCAATCTTGTGATGCTACTC", k=4,  reverse=True, debug=True)
     #print(hd.hurdleMatrix)
     print("calculate hurdle time:", time.time() - a)
 

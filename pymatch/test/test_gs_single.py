@@ -2,7 +2,7 @@ from pymatch.algorithms import GASMAProjection, NeedlemanWunsch
 import time
 
 test_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.random.dataset.seq"
-test_items = 100
+test_items = 1000
 
 GASMATime = 0
 NWTime = 0
@@ -23,7 +23,7 @@ with open(test_file, "r") as f:
         print(str2)
         
         currTime = time.time()
-        g = GASMAProjection(str1, str2, k=8, sight=3, debug=False)
+        g = GASMAProjection(str1, str2, k=8, sight=5, debug=False)
         cost = g.editDistance()
         GASMATime += time.time() - currTime
 
@@ -35,10 +35,10 @@ with open(test_file, "r") as f:
         error += abs(cost - NWcost)
         correct += (cost == NWcost)
 
-        
-        
-        print("NW Cost:", NWcost)
-        print("GASMA Cost:", cost)
+        if NWcost != cost:
+            
+            print("NW Cost:", NWcost)
+            print("GASMA Cost:", cost)
 
         i += 1
         if i >= test_items:

@@ -42,7 +42,10 @@ After removing ones
 11000000011111111111111111111111000000000000000111111111111100110001111111100111100011111000011100011110011000011
 ```
 
+## When will it fail
 
+- When the small highway is out of the range we are searching
+- When there are some highways that con only be chosen when the sight is short/large
 
 
 ## Current problems with Greedy ASM Algorithm

@@ -325,7 +325,8 @@ class HurdleBits:
                 print(l)
             print("After removing ones")
         
-        self.processedBits = self.removeSingleOnes(self.bits)
+        self.processedBits = self.removeSingleZeros(self.bits)
+        #self.processedBits = self.removeSingleOnes(self.processedBits)
         #self.processedBits = self.removeSingleZeros(self.processedBits) #?
         #self.shiftRight(1)
         self.reversedBits = [int(format(s, "b")[::-1], 2) for s in self.bits]
@@ -345,8 +346,8 @@ class HurdleBits:
         """
         extract the highway at lane `shift` and column `col`.
         """
-        leftBound = gmpy.scan1(self.processedBits[shift + self.k] >> col)
-        rightBound = gmpy.scan1(self.reversedProcessedBits[shift + self.k] >> (self.length - col))
+        leftBound = gmpy.scan1(self.processedBits[shift + self.k] >> min(col, self.length))
+        rightBound = gmpy.scan1(self.reversedProcessedBits[shift + self.k] >> max(self.length - col, 0))
         #print(leftBound, rightBound)
         if leftBound < 0 or rightBound < 0:
             return int("1" * self.length, 2)

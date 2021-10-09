@@ -7,6 +7,11 @@ class NeedlemanWunsch(ApproximateStringMatching):
         self.D = np.zeros((self.m + 1, self.n + 1)) # edit distance matrix
         self.alignment = {"dna1": "", "dna2": ""}
 
+        # Metrics
+        self.num_matches = 0
+        self.num_consecutive_matches = 0
+        self.matching = False
+
 
     def editDistance(self):
         for j in range(1, self.n + 1):
@@ -39,16 +44,26 @@ class NeedlemanWunsch(ApproximateStringMatching):
                 # Match with same character
                 self.alignment["dna1"] = self.dna1.string[i-1] + self.alignment["dna1"]
                 self.alignment["dna2"] = self.dna2.string[j-1] + self.alignment["dna2"]
+                if self.dna1.string[i-1] != self.dna2.string[j-1]:
+                    self.matching = False
+                else:
+                    self.num_matches += 1
+                    if not self.matching:
+                        self.matching = True
+                        self.num_consecutive_matches += 1
                 i -= 1
                 j -= 1
+                
             elif i > 0 and self.D[i][j] == self.D[i-1][j] + self.deleteCost({}):
                 self.alignment["dna1"] = self.dna1.string[i-1] + self.alignment["dna1"]
                 self.alignment["dna2"] = "-" + self.alignment["dna2"]
                 i -= 1
+                self.matching = False
             else:
                 self.alignment["dna1"] = "-" + self.alignment["dna1"]
                 self.alignment["dna2"] = self.dna2.string[j-1] + self.alignment["dna2"]
                 j -= 1
+                self.matching = False
             #print(self.alignment)
 
 
@@ -63,5 +78,7 @@ if __name__ == "__main__":
     print(prob.editDistance())
     print(prob.D)
     print(prob)
+    print(prob.num_matches, prob.num_consecutive_matches)
+    print(prob.num_matches / prob.num_consecutive_matches)
 
 

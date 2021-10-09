@@ -48,6 +48,14 @@ class GASMAProjection(ApproximateStringMatching):
         self.j = 0
         self.match = {"dna1": "", "dna2": ""}
 
+        # metrics
+        self.num_matches = 0
+        self.num_consecutive_matches = 0
+        self.matching = False
+
+        self.maxZerosIgnored = maxZerosIgnored
+
+
         # Edit distance
         self.hurdleCost = 0
         self.leapCost = 0
@@ -252,6 +260,8 @@ class GASMAProjection(ApproximateStringMatching):
                 self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
                 self.leapCost += 1
                 self.i += 1
+        
+        self.matching = False
 
     def _updateMatch(self, oldPosition, newPosition, leapType="after"):
         """
@@ -274,6 +284,15 @@ class GASMAProjection(ApproximateStringMatching):
             self.match["dna1"] += self.hurdleBits.dna1.string[self.i]
             self.match["dna2"] += self.hurdleBits.dna2.string[self.j]
             self.hurdleCost += (self.hurdleBits.dna1.string[self.i] != self.hurdleBits.dna2.string[self.j])
+            
+            if self.hurdleBits.dna1.string[self.i] != self.hurdleBits.dna2.string[self.j]:
+                self.matching = False
+            elif (self.maxZerosIgnored + 5) < self.i < self.length - (self.maxZerosIgnored + 5) - 1 and (self.maxZerosIgnored + 5) < self.j < self.length - (self.maxZerosIgnored + 5) - 1:
+                
+                self.num_matches += 1
+                if not self.matching:
+                    self.matching = True
+                    self.num_consecutive_matches += 1
             self.j += 1
             self.i += 1
         if leapType == "after":
@@ -284,6 +303,7 @@ class GASMAProjection(ApproximateStringMatching):
         if self.debug:
             print(self.match["dna1"])
             print(self.match["dna2"])
+    
 
 
 
@@ -402,6 +422,12 @@ class GASMAProjection(ApproximateStringMatching):
             print("hurdle cost", self.hurdleCost)
             print("leap cost", self.leapCost)
         
+        # Adjust match
+        self.match["dna1"] = self.match["dna1"][self.maxZerosIgnored+5:-(self.maxZerosIgnored+5)]
+        self.match["dna2"] = self.match["dna2"][self.maxZerosIgnored+5:-(self.maxZerosIgnored+5)]
+        print(self.match)
+
+        
         return self.hurdleCost + self.leapCost
 
             
@@ -420,4 +446,6 @@ if __name__ == "__main__":
     g = GASMAProjection("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC", 
               "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=2, sight=10, maxZerosIgnored=1, debug=True, skipHurdle=False)
     g.editDistance()
+    print(g.num_matches, g.num_consecutive_matches)
+    print(g.num_matches / g.num_consecutive_matches)
 

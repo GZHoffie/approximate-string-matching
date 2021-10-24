@@ -1,6 +1,8 @@
 from pymatch.algorithms import GASMAProjection, NeedlemanWunsch
-from pymatch.metrics import Coverage
+from pymatch.metrics import Coverage, numLeaps
 import time
+from collections import Counter
+import matplotlib.pyplot as plt
 
 test_file = "/home/zhenhao/approximate-string-matching/pymatch/test/resource/sample.random.dataset.seq"
 test_items = 1000
@@ -10,6 +12,13 @@ GASMATime = 0
 NWTime = 0
 error = 0
 correct = 0
+
+# Counter
+totalCounter = Counter()
+correctCounter = Counter()
+coverCounter = Counter()
+leap1Counter = Counter()
+leap2Counter = Counter()
 
 with open(test_file, "r") as f:
     i = 0
@@ -46,6 +55,11 @@ with open(test_file, "r") as f:
         error += abs(cost - NWcost)
         correct += (cost == NWcost)
 
+        # Counter
+        totalCounter[NWcost] += 1
+        correctCounter[NWcost] += (cost == NWcost)
+
+
         #if NWcost != cost:
             #print(nw)
             #print(g1.match["dna1"])
@@ -55,7 +69,12 @@ with open(test_file, "r") as f:
             #print("GASMA Cost:", cost)
         
 
-        good_items += Coverage(g1.match, nw.alignment, shortestMatchAccepted=3).compute()
+        good_items += Coverage(g1.match, nw.alignment, 0, 3).compute()
+
+        coverCounter[NWcost] += Coverage(g1.match, nw.alignment, 0, 3).compute()
+        leap1Counter[NWcost] += numLeaps(g1.match).compute()
+        leap2Counter[NWcost] += numLeaps(nw.alignment).compute()
+
 
 
         i += 1
@@ -67,3 +86,16 @@ print("NW Time:", NWTime)
 print("MAE:", error / test_items)
 print("Correct rate:", correct / test_items)
 print("Better match:", good_items / test_items)
+
+for i in totalCounter:
+    correctCounter[i] /= totalCounter[i]
+    coverCounter[i] /= totalCounter[i]
+    leap1Counter[i] /= totalCounter[i]
+    leap2Counter[i] /= totalCounter[i]
+
+plt.bar(correctCounter.keys(), correctCounter.values())
+
+print("Correct rate", correctCounter)
+print("coverage", coverCounter)
+print("num leaps in greedy", leap1Counter)
+print("num leaps in optimal", leap2Counter)

@@ -1,6 +1,13 @@
 #include <iostream>
+#include "utils.h"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    printf("wow");
+    auto* matrix = new hurdle_matrix(
+            "AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC",
+            "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC",
+            2, 128
+            );
+    matrix->print();
     return 0;
 }

@@ -16,9 +16,6 @@ AR=ar
 AR_FLAGS=-rsc
 
 SUBDIRS=benchmark/util
-       
-LIB_WFA=$(FOLDER_BUILD)/libwfa.a
-LIB_WFA_SO=$(FOLDER_BUILD)/libwfa.so
 
 
 all: CC_FLAGS+=-O3 -fPIC

@@ -2,12 +2,12 @@
 #include "utils.h"
 
 int main() {
-    printf("wow");
     auto* matrix = new hurdle_matrix(
             "AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC",
             "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC",
             2, 128
             );
     matrix->print();
+    delete matrix;
     return 0;
 }

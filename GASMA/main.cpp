@@ -5,9 +5,10 @@ int main() {
     auto* matrix = new hurdle_matrix(
             "AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC",
             "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC",
-            2, 128
+            3, 128
             );
     matrix->print();
+    matrix->run();
     delete matrix;
     return 0;
 }

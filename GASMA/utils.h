@@ -11,8 +11,8 @@
 #ifndef GASMA_UTILS_H
 #define GASMA_UTILS_H
 
-
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <x86intrin.h>
 
@@ -81,10 +81,20 @@ public:
         printf("\n");
     }
 
+    /**
+     * Perform bit-wise xor with that.
+     * @param that an int_128bit object.
+     * @return this ^ that
+     */
     int_128bit _xor(const int_128bit &that) {
         return _mm_xor_si128(this->val, that.val);
     }
 
+    /**
+     * Perform bit-wise or with that.
+     * @param that an int_128bit object.
+     * @return this | that
+     */
     int_128bit _or(const int_128bit &that) {
         return _mm_or_si128(this->val, that.val);
     }
@@ -112,6 +122,36 @@ public:
         vec = _mm_srli_epi64(vec, shift_num);
         return _mm_or_si128(vec, carryover);
     }
+
+    int first_zero() {
+        // TODO: replace this with de Brujin Sequence that is faster than scanning
+        auto *data = (uint8_t*) &this->val;
+        int index = 0;
+        for (int i = 0; i < 16; i++) {
+            for (int m = 0; m < 8; m++) {
+                if (data[i] & (1ULL << m))
+                    index += 1;
+                else
+                    return index;
+            }
+        }
+        return index;
+    }
+
+    int first_one() {
+        // TODO: replace this with de Brujin Sequence that is faster than scanning
+        auto *data = (uint8_t*) &this->val;
+        int index = 0;
+        for (int i = 0; i < 16; i++) {
+            for (int m = 0; m < 8; m++) {
+                if (data[i] & (1ULL << m))
+                    return index;
+                else
+                    index += 1;
+            }
+        }
+        return index;
+    }
 };
 
 /**
@@ -124,7 +164,35 @@ public:
 
     // Length of the highway
     int length;
+
+    // Cost to reach this highway
+    int cost;
 };
+
+/**
+ * Calculate the linear leaping from lane1 to lane2.
+ * @param lane1 The lane number that we come from.
+ * @param lane2 The lane number that we are going to.
+ * @return The leaping penalty.
+ */
+int __linear_leap_lane_penalty(int lane1, int lane2) {
+    return abs(lane1 - lane2);
+}
+
+/**
+ * Calculate the columns skipped while leaping from lane1 to lane2.
+ * @param lane1 The lane number that we come from.
+ * @param lane2 The lane number that we are going to.
+ * @return The number of columns skipped.
+ */
+int __linear_leap_forward_column(int lane1, int lane2) {
+    if (lane1 * lane2 >= 0) {
+        if (abs(lane1) > abs(lane2)) return abs(lane1) - abs(lane2);
+        else return 0;
+    }
+    return abs(lane1);
+}
+
 
 class hurdle_matrix {
 private:
@@ -134,6 +202,17 @@ private:
     // two strings for comparison
     char A[MAX_LENGTH] __aligned__;
     char B[MAX_LENGTH] __aligned__;
+
+#ifdef DEBUG
+    // string storing the original two strings
+    char A_orig[MAX_LENGTH] __aligned__;
+    char B_orig[MAX_LENGTH] __aligned__;
+
+    // strings storing the matched strings
+    char A_match[MAX_LENGTH * 2] __aligned__;
+    char B_match[MAX_LENGTH * 2] __aligned__;
+    int A_index, B_index, A_match_index, B_match_index;
+#endif
 
     // int_128bit objects storing the bit arrays converted from string A and B
     int_128bit* A_bit0_mask;
@@ -152,6 +231,7 @@ private:
         highway_info* info;
 
     public:
+        int longest_highway_lane;
 
         /**
          * Constructor of the LSB class.
@@ -161,12 +241,23 @@ private:
         explicit highways(int error) {
             k = error;
             info = new highway_info[2 * k + 1];
-            info->length = 0;
-            info->starting_point = 0;
+            longest_highway_lane = 0;
+            for (int i = 0; i < 2 * k + 1; i++) {
+                info[i].length = 0;
+                info[i].starting_point = -1;
+                info[i].cost = MAX_LENGTH;
+            }
         }
 
         highway_info& operator[](int lane) {
-            return *info[lane + k];
+            return info[lane + k];
+        }
+
+        void print() {
+            for (int lane = -k; lane <= k; lane++) {
+                printf("lane: %d, starting point: %d, length: %d, cost: %d\n", lane,
+                       (*this)[lane].starting_point, (*this)[lane].length, (*this)[lane].cost);
+            }
         }
 
         ~highways(){
@@ -178,6 +269,9 @@ private:
     // current position
     int current_lane;
     int current_column;
+
+    // total cost
+    int cost;
 
     /**
      * Convert A and B into int8 objects and store them in A_bit0_t, A_bit1_t,
@@ -201,13 +295,94 @@ private:
         B_bit1_mask = new int_128bit(B_bit1_t);
     }
 
+    /**
+     * Update highway_list for each lane and show the closest highway to the
+     * current position. Calculate the cost and record the longest highway.
+     */
     void _update_highway_list() {
+        int longest_highway_length = 0;
+        int longest_highway_lane = 0;
         for (int lane = -k; lane <= k; lane++) {
-            if ((highway_list[lane]).starting_point < current_column) {
+            int start_col = current_column + __linear_leap_forward_column(current_lane, lane);
+            if ((*highway_list)[lane].starting_point < start_col) {
+                // get closest highway in the lane
+                int_128bit l = (lanes[lane + k]).shift_left(start_col);
 
+                // update highway in lane
+                int first_zero = l.first_zero();
+                int next_hurdle = (l.shift_left(first_zero)).first_one();
+                (*highway_list)[lane].starting_point = start_col + first_zero;
+                (*highway_list)[lane].length = next_hurdle;
+
+                // calculate cost to reach the highway
+                // FIXME: use function pointer for more complicated penalties.
+                int leap_cost = __linear_leap_lane_penalty(current_lane, lane);
+                int hurdle_cost = first_zero;
+                (*highway_list)[lane].cost = leap_cost + hurdle_cost;
+            }
+            if ((*highway_list)[lane].length > longest_highway_length) {
+                longest_highway_length = (*highway_list)[lane].length;
+                longest_highway_lane = lane;
             }
         }
+        highway_list->longest_highway_lane = longest_highway_lane;
+        highway_list->print();
+    }
 
+    /**
+     * Choose the best highway according to the updated highway list.
+     * @return The lane number where the best highway is.
+     */
+    int _choose_best_highway() {
+        int best_lane = highway_list->longest_highway_lane;
+        int smallest_cost = (*highway_list)[best_lane].cost;
+        int smallest_cost_lane = best_lane;
+        for (int lane = -k; lane <= k; lane++) {
+            if (lane != best_lane) {
+                int new_cost = (*highway_list)[lane].cost + __linear_leap_lane_penalty(lane, best_lane);
+                if (new_cost < smallest_cost) {
+                    smallest_cost = new_cost;
+                    smallest_cost_lane = lane;
+                }
+            }
+        }
+        return smallest_cost_lane;
+    }
+
+    /**
+     * Perform one step in the greedy algorithm.
+     */
+    void _step() {
+        _update_highway_list();
+        int best_lane = _choose_best_highway();
+        cost += (*highway_list)[best_lane].cost;
+#ifdef DEBUG
+        // update matched strings
+        if (best_lane < current_lane) {
+            for (int i = best_lane; i < current_lane; i++) {
+                A_match[A_match_index] = A_orig[A_index];
+                B_match[B_match_index] = '-';
+                A_match_index++, B_match_index++, A_index++;
+            }
+        } else {
+            for (int i = current_lane; i < best_lane; i++) {
+                A_match[A_match_index] = '-';
+                B_match[B_match_index] = B_orig[B_index];
+                A_match_index++, B_match_index++, B_index++;
+            }
+        }
+        int distance = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length -
+                (current_column + __linear_leap_forward_column(current_lane, best_lane));
+        for (int i = 0; i < distance; i++) {
+            A_match[A_match_index] = A_orig[A_index];
+            B_match[B_match_index] = B_orig[B_index];
+            A_match_index++, B_match_index++, A_index++, B_index++;
+        }
+        printf("%s\n%s\n", A_match, B_match);
+#endif
+        current_lane = best_lane;
+        current_column = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length;
+        printf("%d,%d\n", current_lane, current_column);
     }
 
     /**
@@ -251,6 +426,21 @@ public:
         // define starting position at (0, 0)
         current_lane = 0;
         current_column = 0;
+        cost = 0;
+        highway_list->print();
+
+#ifdef DEBUG
+        strncpy(A_orig, read, length);
+        strncpy(B_orig, ref, length);
+        A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
+#endif
+        //_update_highway_list();
+    }
+
+    void run() {
+        for (int i = 0; i < 10; i++) {
+            _step();
+        }
     }
 
     void print() {
@@ -264,7 +454,5 @@ public:
         delete[] lanes;
     }
 };
-
-
 
 #endif //GASMA_UTILS_H

@@ -302,6 +302,7 @@ private:
     void _update_highway_list() {
         int longest_highway_length = 0;
         int longest_highway_lane = 0;
+        int first_zero;
         for (int lane = -k; lane <= k; lane++) {
             int start_col = current_column + __linear_leap_forward_column(current_lane, lane);
             if ((*highway_list)[lane].starting_point < start_col) {
@@ -309,17 +310,18 @@ private:
                 int_128bit l = (lanes[lane + k]).shift_left(start_col);
 
                 // update highway in lane
-                int first_zero = l.first_zero();
+                first_zero = l.first_zero();
                 int next_hurdle = (l.shift_left(first_zero)).first_one();
                 (*highway_list)[lane].starting_point = start_col + first_zero;
                 (*highway_list)[lane].length = next_hurdle;
-
-                // calculate cost to reach the highway
-                // FIXME: use function pointer for more complicated penalties.
-                int leap_cost = __linear_leap_lane_penalty(current_lane, lane);
-                int hurdle_cost = first_zero;
-                (*highway_list)[lane].cost = leap_cost + hurdle_cost;
             }
+            // calculate cost to reach the highway
+            // FIXME: use function pointer for more complicated penalties.
+            int leap_cost = __linear_leap_lane_penalty(current_lane, lane);
+            int hurdle_cost = (*highway_list)[lane].starting_point - start_col;
+            (*highway_list)[lane].cost = leap_cost + hurdle_cost;
+
+            // get the longest highway
             if ((*highway_list)[lane].length > longest_highway_length) {
                 longest_highway_length = (*highway_list)[lane].length;
                 longest_highway_lane = lane;
@@ -336,13 +338,16 @@ private:
     int _choose_best_highway() {
         int best_lane = highway_list->longest_highway_lane;
         int smallest_cost = (*highway_list)[best_lane].cost;
+        int smallest_cost_length = 0;
         int smallest_cost_lane = best_lane;
         for (int lane = -k; lane <= k; lane++) {
             if (lane != best_lane) {
                 int new_cost = (*highway_list)[lane].cost + __linear_leap_lane_penalty(lane, best_lane);
-                if (new_cost < smallest_cost) {
+                if (new_cost < smallest_cost || (new_cost == smallest_cost &&
+                    (*highway_list)[lane].length > smallest_cost_length)) {
                     smallest_cost = new_cost;
                     smallest_cost_lane = lane;
+                    smallest_cost_length = (*highway_list)[lane].length;
                 }
             }
         }
@@ -438,7 +443,7 @@ public:
     }
 
     void run() {
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 16; i++) {
             _step();
         }
     }

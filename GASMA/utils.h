@@ -167,6 +167,9 @@ public:
 
     // Cost to reach this highway
     int cost;
+
+    // Destination column
+    int destination;
 };
 
 /**
@@ -175,7 +178,7 @@ public:
  * @param lane2 The lane number that we are going to.
  * @return The leaping penalty.
  */
-int __linear_leap_lane_penalty(int lane1, int lane2) {
+int linear_leap_lane_penalty(int lane1, int lane2) {
     return abs(lane1 - lane2);
 }
 
@@ -185,7 +188,7 @@ int __linear_leap_lane_penalty(int lane1, int lane2) {
  * @param lane2 The lane number that we are going to.
  * @return The number of columns skipped.
  */
-int __linear_leap_forward_column(int lane1, int lane2) {
+int linear_leap_forward_column(int lane1, int lane2) {
     if (lane1 * lane2 >= 0) {
         if (abs(lane1) > abs(lane2)) return abs(lane1) - abs(lane2);
         else return 0;
@@ -223,12 +226,62 @@ private:
     // rows in the hurdle matrix
     int_128bit* lanes;
 
+    // information about destination
+    int destination_lane;
+
+    // length of read and ref
+    int m, n;
+
+#ifdef DEBUG
+    /**
+     * Update the matching strings given the lanes we are leaping to and the distance we
+     * are moving.
+     * @param best_lane The lane we are leaping to.
+     * @param curr_lane The lane we are currently at.
+     * @param distance The distance we travel on best_lane to reach the highway.
+     */
+    void _update_match(int best_lane, int curr_lane, int distance) {
+        // update matched strings
+        if (best_lane < curr_lane) {
+            for (int i = best_lane; i < curr_lane; i++) {
+                A_match[A_match_index] = A_orig[A_index];
+                B_match[B_match_index] = '-';
+                A_match_index++, B_match_index++, A_index++;
+            }
+        } else {
+            for (int i = curr_lane; i < best_lane; i++) {
+                A_match[A_match_index] = '-';
+                B_match[B_match_index] = B_orig[B_index];
+                A_match_index++, B_match_index++, B_index++;
+            }
+        }
+        for (int i = 0; i < distance; i++) {
+            A_match[A_match_index] = A_orig[A_index];
+            B_match[B_match_index] = B_orig[B_index];
+            A_match_index++, B_match_index++, A_index++, B_index++;
+        }
+        printf("%s\n%s\n", A_match, B_match);
+    }
+#endif
+
     // list containing the closest highway of each lane
     class highways {
     private:
         // maximum difference allowed
         int k;
         highway_info* info;
+
+        static int _calculate_destination(int _m, int _n, int lane) {
+            if (_m >= _n) {
+                if (lane < 0) return _n + lane;
+                else if (lane < _m - _n) return _n;
+                else return _m - lane;
+            } else {
+                if (lane > 0) return _m - lane;
+                else if (lane < _m - _n) return _m;
+                else return _n - lane;
+            }
+        }
 
     public:
         int longest_highway_lane;
@@ -237,15 +290,17 @@ private:
          * Constructor of the LSB class.
          * @param error value of parameter k, or the maximum number of difference
          *      allowed.
+         * @param m, n the length of read and ref string
          */
-        explicit highways(int error) {
+        explicit highways(int error, int m, int n) {
             k = error;
             info = new highway_info[2 * k + 1];
             longest_highway_lane = 0;
-            for (int i = 0; i < 2 * k + 1; i++) {
-                info[i].length = 0;
-                info[i].starting_point = -1;
-                info[i].cost = MAX_LENGTH;
+            for (int lane = -k; lane <= k; lane++) {
+                info[lane + k].length = 0;
+                info[lane + k].starting_point = -1;
+                info[lane + k].cost = MAX_LENGTH;
+                info[lane + k].destination = _calculate_destination(m, n, lane);
             }
         }
 
@@ -298,13 +353,15 @@ private:
     /**
      * Update highway_list for each lane and show the closest highway to the
      * current position. Calculate the cost and record the longest highway.
+     *
+     * @return a boolean value indicating whethere there is still a valid highway.
      */
-    void _update_highway_list() {
+    bool _update_highway_list() {
         int longest_highway_length = 0;
         int longest_highway_lane = 0;
         int first_zero;
         for (int lane = -k; lane <= k; lane++) {
-            int start_col = current_column + __linear_leap_forward_column(current_lane, lane);
+            int start_col = current_column + linear_leap_forward_column(current_lane, lane);
             if ((*highway_list)[lane].starting_point < start_col) {
                 // get closest highway in the lane
                 int_128bit l = (lanes[lane + k]).shift_left(start_col);
@@ -314,10 +371,16 @@ private:
                 int next_hurdle = (l.shift_left(first_zero)).first_one();
                 (*highway_list)[lane].starting_point = start_col + first_zero;
                 (*highway_list)[lane].length = next_hurdle;
+
+                // Fix length if reaches destination
+                if (start_col + first_zero + next_hurdle > (*highway_list)[lane].destination) {
+                    (*highway_list)[lane].length = (*highway_list)[lane].destination -\
+                                                   (start_col + first_zero) + 1;
+                }
             }
             // calculate cost to reach the highway
             // FIXME: use function pointer for more complicated penalties.
-            int leap_cost = __linear_leap_lane_penalty(current_lane, lane);
+            int leap_cost = linear_leap_lane_penalty(current_lane, lane);
             int hurdle_cost = (*highway_list)[lane].starting_point - start_col;
             (*highway_list)[lane].cost = leap_cost + hurdle_cost;
 
@@ -328,7 +391,13 @@ private:
             }
         }
         highway_list->longest_highway_lane = longest_highway_lane;
+        if (longest_highway_length <= 0) {
+            return false;
+        }
+#ifdef DEBUG
         highway_list->print();
+#endif
+        return true;
     }
 
     /**
@@ -342,7 +411,7 @@ private:
         int smallest_cost_lane = best_lane;
         for (int lane = -k; lane <= k; lane++) {
             if (lane != best_lane) {
-                int new_cost = (*highway_list)[lane].cost + __linear_leap_lane_penalty(lane, best_lane);
+                int new_cost = (*highway_list)[lane].cost + linear_leap_lane_penalty(lane, best_lane);
                 if (new_cost < smallest_cost || (new_cost == smallest_cost &&
                     (*highway_list)[lane].length > smallest_cost_length)) {
                     smallest_cost = new_cost;
@@ -356,38 +425,32 @@ private:
 
     /**
      * Perform one step in the greedy algorithm.
+     * @return a boolean value indicating whether we complete the matching.
      */
-    void _step() {
-        _update_highway_list();
+    bool _step() {
+        if (!_update_highway_list()) {
+            return true;
+        }
         int best_lane = _choose_best_highway();
         cost += (*highway_list)[best_lane].cost;
+
 #ifdef DEBUG
         // update matched strings
-        if (best_lane < current_lane) {
-            for (int i = best_lane; i < current_lane; i++) {
-                A_match[A_match_index] = A_orig[A_index];
-                B_match[B_match_index] = '-';
-                A_match_index++, B_match_index++, A_index++;
-            }
-        } else {
-            for (int i = current_lane; i < best_lane; i++) {
-                A_match[A_match_index] = '-';
-                B_match[B_match_index] = B_orig[B_index];
-                A_match_index++, B_match_index++, B_index++;
-            }
-        }
         int distance = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length -
-                (current_column + __linear_leap_forward_column(current_lane, best_lane));
-        for (int i = 0; i < distance; i++) {
-            A_match[A_match_index] = A_orig[A_index];
-            B_match[B_match_index] = B_orig[B_index];
-            A_match_index++, B_match_index++, A_index++, B_index++;
-        }
-        printf("%s\n%s\n", A_match, B_match);
+                       (current_column + linear_leap_forward_column(current_lane, best_lane));
+        _update_match(best_lane, current_lane, distance);
 #endif
+
         current_lane = best_lane;
         current_column = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length;
-        printf("%d,%d\n", current_lane, current_column);
+#ifdef DEBUG
+        printf("current position: %d, %d\n", current_lane, current_column);
+#endif
+        // Check if we reach the destination
+        if (current_column >= (*highway_list)[current_lane].destination) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -415,37 +478,50 @@ public:
         return lanes[lane + k];
     }
 
-    hurdle_matrix(const char* read, const char* ref, int error, int length) {
-        if (length > MAX_LENGTH) {
-            length = MAX_LENGTH;
-        }
+    hurdle_matrix(const char* read, const char* ref, int error) {
+        m = std::min((size_t) MAX_LENGTH, strlen(read));
+        n = std::min((size_t) MAX_LENGTH, strlen(ref));
+
         // assign to class parameters
-        strncpy(A, read, length);
-        strncpy(B, ref, length);
+        strncpy(A, read, m);
+        strncpy(B, ref, n);
         k = error;
         _convert_read();
-        highway_list = new highways(k);
+        highway_list = new highways(k, m, n);
         lanes = new int_128bit[2 * k + 1];
+        destination_lane = n - m;
         _construct_hurdles();
 
         // define starting position at (0, 0)
         current_lane = 0;
         current_column = 0;
         cost = 0;
-        highway_list->print();
 
 #ifdef DEBUG
-        strncpy(A_orig, read, length);
-        strncpy(B_orig, ref, length);
+        strncpy(A_orig, read, m);
+        strncpy(B_orig, ref, n);
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
-        //_update_highway_list();
     }
 
     void run() {
-        for (int i = 0; i < 16; i++) {
-            _step();
+        bool flag = false;
+        while (!flag) {
+            flag = _step();
         }
+        // Check if we reach the final destination
+        int destination_column = (*highway_list)[destination_lane].destination;
+        if (current_lane != destination_lane || current_column < destination_column) {
+            int leap_cost = linear_leap_lane_penalty(current_lane, destination_lane);
+            int hurdle_cost = std::max(0, destination_column - current_column -
+                                       linear_leap_forward_column(current_lane, destination_lane));
+            cost += leap_cost + hurdle_cost;
+#ifdef DEBUG
+            // update matched strings
+            _update_match(destination_lane, current_lane, hurdle_cost);
+#endif
+        }
+        printf("total cost: %d", cost);
     }
 
     void print() {

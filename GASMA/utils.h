@@ -17,10 +17,15 @@
 #include <x86intrin.h>
 
 #include "bit_convert.h"
+#include "mask.h"
 
 // Define constant
 #ifndef MAX_LENGTH
 #define MAX_LENGTH 128             // The maximum length of string
+#endif
+
+#ifndef EXPECTED_ERROR_RATE
+#define EXPECTED_ERROR_RATE 1
 #endif
 
 void print_byte_vector(uint8_t *data, int length) {
@@ -152,6 +157,37 @@ public:
         }
         return index;
     }
+
+    void flip_false_zero() {
+        __m128i *boundary= (__m128i *) MASK_7F;
+        __m128i shift = _mm_and_si128(*boundary, this->val);
+        __m128i *mask = (__m128i *) MASK_0TO1;
+        shift = _mm_shuffle_epi8(*mask, shift);
+        this->val = _mm_or_si128(this->val, shift);
+        for (int i = 1; i < 4; i++) {
+            shift = _mm_srli_epi16(this->val, i);
+            shift = _mm_and_si128(*boundary, shift);
+            shift = _mm_shuffle_epi8(*mask, shift);
+            shift = _mm_slli_epi16(shift, i);
+            this->val = _mm_or_si128(this->val, shift);
+        }
+
+        int_128bit shifted_vec = this->shift_right(4);
+        shift = _mm_and_si128(*boundary, shifted_vec.val);
+        shift = _mm_shuffle_epi8(*mask, shift);
+        shifted_vec = _mm_or_si128(shifted_vec.val, shift);
+        for (int i = 1; i < 4; i++) {
+            shift = _mm_srli_epi16(shifted_vec.val, i);
+            shift = _mm_and_si128(*boundary, shift);
+            shift = _mm_shuffle_epi8(*mask, shift);
+            shift = _mm_slli_epi16(shift, i);
+            shifted_vec = _mm_or_si128(shifted_vec.val, shift);
+        }
+
+        shifted_vec = this->shift_right(4);
+        this->val = _mm_or_si128(shifted_vec.val, this->val);
+
+    }
 };
 
 /**
@@ -170,6 +206,9 @@ public:
 
     // Destination column
     int destination;
+
+    // Expected cost
+    int heuristic;
 };
 
 /**
@@ -284,7 +323,7 @@ private:
         }
 
     public:
-        int longest_highway_lane;
+        int best_highway_lane;
 
         /**
          * Constructor of the LSB class.
@@ -295,12 +334,12 @@ private:
         explicit highways(int error, int m, int n) {
             k = error;
             info = new highway_info[2 * k + 1];
-            longest_highway_lane = 0;
+            best_highway_lane = 0;
             for (int lane = -k; lane <= k; lane++) {
-                info[lane + k].length = 0;
                 info[lane + k].starting_point = -1;
                 info[lane + k].cost = MAX_LENGTH;
                 info[lane + k].destination = _calculate_destination(m, n, lane);
+                info[lane + k].heuristic = MAX_LENGTH;
             }
         }
 
@@ -357,8 +396,8 @@ private:
      * @return a boolean value indicating whethere there is still a valid highway.
      */
     bool _update_highway_list() {
-        int longest_highway_length = 0;
-        int longest_highway_lane = 0;
+        int smallest_highway_heuristic = MAX_LENGTH;
+        int best_highway_lane = 0;
         int first_zero;
         for (int lane = -k; lane <= k; lane++) {
             int start_col = current_column + linear_leap_forward_column(current_lane, lane);
@@ -384,14 +423,20 @@ private:
             int hurdle_cost = (*highway_list)[lane].starting_point - start_col;
             (*highway_list)[lane].cost = leap_cost + hurdle_cost;
 
+            // calculate expected cost to reach destination
+            leap_cost = linear_leap_lane_penalty(lane, destination_lane);
+            hurdle_cost = (*highway_list)[lane].destination - (*highway_list)[lane].starting_point -
+                    (*highway_list)[lane].length;
+            (*highway_list)[lane].heuristic = leap_cost + (int)(EXPECTED_ERROR_RATE * hurdle_cost);
+
             // get the longest highway
-            if ((*highway_list)[lane].length > longest_highway_length) {
-                longest_highway_length = (*highway_list)[lane].length;
-                longest_highway_lane = lane;
+            if ((*highway_list)[lane].heuristic + (*highway_list)[lane].cost < smallest_highway_heuristic) {
+                smallest_highway_heuristic = (*highway_list)[lane].heuristic + (*highway_list)[lane].cost;
+                best_highway_lane = lane;
             }
         }
-        highway_list->longest_highway_lane = longest_highway_lane;
-        if (longest_highway_length <= 0) {
+        highway_list->best_highway_lane = best_highway_lane;
+        if ((*highway_list)[best_highway_lane].length <= 0) {
             return false;
         }
 #ifdef DEBUG
@@ -405,7 +450,7 @@ private:
      * @return The lane number where the best highway is.
      */
     int _choose_best_highway() {
-        int best_lane = highway_list->longest_highway_lane;
+        int best_lane = highway_list->best_highway_lane;
         int smallest_cost = (*highway_list)[best_lane].cost;
         int smallest_cost_length = 0;
         int smallest_cost_lane = best_lane;
@@ -469,6 +514,7 @@ private:
                 mask_bit1 = (B_bit1_mask->shift_left(lane))._xor(*A_bit1_mask);
             }
             auto mask = mask_bit0._or(mask_bit1);
+            mask.flip_false_zero();
             (*this)[lane] = mask;
         }
     }

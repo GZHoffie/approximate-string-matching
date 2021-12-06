@@ -7,7 +7,7 @@ int main() {
             "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC",
             3
             );
-    //matrix->print();
+    matrix->print();
     matrix->run();
     delete matrix;
     return 0;

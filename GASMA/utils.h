@@ -46,10 +46,10 @@ private:
 
 public:
     /**
-     * Default constructor of the class `int_128bit`. Set everything to 0.
+     * Default constructor of the class `int_128bit`. Set value to be 1.
      */
     int_128bit() {
-        val = _mm_setr_epi32(0, 0, 0, 0);
+        val = _mm_setr_epi32(1, 0, 0, 0);
     }
 
     /**
@@ -102,6 +102,24 @@ public:
      */
     int_128bit _or(const int_128bit &that) {
         return _mm_or_si128(this->val, that.val);
+    }
+
+    /**
+    * Perform bit-wise and with that.
+    * @param that an int_128bit object.
+    * @return this & that
+    */
+    int_128bit _and(const int_128bit &that) {
+        return _mm_and_si128(this->val, that.val);
+    }
+
+    /**
+    * Perform addition with that.
+    * @param that an int_128bit object.
+    * @return this & that
+    */
+    int_128bit _add(const uint8_t &that) {
+        return _mm_add_epi32(this->val, _mm_setr_epi32(0, 0, 0, that));
     }
 
     int_128bit shift_right(int shift_num) {
@@ -158,35 +176,11 @@ public:
         return index;
     }
 
-    void flip_false_zero() {
-        __m128i *boundary= (__m128i *) MASK_7F;
-        __m128i shift = _mm_and_si128(*boundary, this->val);
-        __m128i *mask = (__m128i *) MASK_0TO1;
-        shift = _mm_shuffle_epi8(*mask, shift);
-        this->val = _mm_or_si128(this->val, shift);
-        for (int i = 1; i < 4; i++) {
-            shift = _mm_srli_epi16(this->val, i);
-            shift = _mm_and_si128(*boundary, shift);
-            shift = _mm_shuffle_epi8(*mask, shift);
-            shift = _mm_slli_epi16(shift, i);
-            this->val = _mm_or_si128(this->val, shift);
-        }
-
-        int_128bit shifted_vec = this->shift_right(4);
-        shift = _mm_and_si128(*boundary, shifted_vec.val);
-        shift = _mm_shuffle_epi8(*mask, shift);
-        shifted_vec = _mm_or_si128(shifted_vec.val, shift);
-        for (int i = 1; i < 4; i++) {
-            shift = _mm_srli_epi16(shifted_vec.val, i);
-            shift = _mm_and_si128(*boundary, shift);
-            shift = _mm_shuffle_epi8(*mask, shift);
-            shift = _mm_slli_epi16(shift, i);
-            shifted_vec = _mm_or_si128(shifted_vec.val, shift);
-        }
-
-        shifted_vec = this->shift_right(4);
-        this->val = _mm_or_si128(shifted_vec.val, this->val);
-
+    int_128bit flip_short_hurdles() {
+        int_128bit one;
+        int_128bit reversed_one = _mm_setr_epi32(0, 0, 0, 0x80000000);
+        int_128bit mask = this->shift_left(1)._or(reversed_one)._or(this->shift_right(1)._or(one));
+        return this->_and(mask);
     }
 };
 
@@ -264,6 +258,7 @@ private:
 
     // rows in the hurdle matrix
     int_128bit* lanes;
+    int_128bit* lanes_without_short_hurdles;
 
     // information about destination
     int destination_lane;
@@ -430,8 +425,8 @@ private:
             (*highway_list)[lane].heuristic = leap_cost + (int)(EXPECTED_ERROR_RATE * hurdle_cost);
 
             // get the longest highway
-            if ((*highway_list)[lane].heuristic + (*highway_list)[lane].cost < smallest_highway_heuristic) {
-                smallest_highway_heuristic = (*highway_list)[lane].heuristic + (*highway_list)[lane].cost;
+            if ((*highway_list)[lane].cost - (*highway_list)[lane].length < smallest_highway_heuristic) {
+                smallest_highway_heuristic = (*highway_list)[lane].cost - (*highway_list)[lane].length;
                 best_highway_lane = lane;
             }
         }
@@ -514,7 +509,7 @@ private:
                 mask_bit1 = (B_bit1_mask->shift_left(lane))._xor(*A_bit1_mask);
             }
             auto mask = mask_bit0._or(mask_bit1);
-            mask.flip_false_zero();
+            //mask = mask.flip_short_hurdles();
             (*this)[lane] = mask;
         }
     }
@@ -531,7 +526,7 @@ public:
         // assign to class parameters
         strncpy(A, read, m);
         strncpy(B, ref, n);
-        k = error;
+        k = std::max(error, abs(m-n) + 2);
         _convert_read();
         highway_list = new highways(k, m, n);
         lanes = new int_128bit[2 * k + 1];

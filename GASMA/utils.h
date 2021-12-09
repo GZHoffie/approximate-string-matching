@@ -114,12 +114,12 @@ public:
     }
 
     /**
-    * Perform addition with that.
-    * @param that an int_128bit object.
-    * @return this & that
+    * Perform bit-wise not.
+    * @return !this
     */
-    int_128bit _add(const uint8_t &that) {
-        return _mm_add_epi32(this->val, _mm_setr_epi32(0, 0, 0, that));
+    int_128bit _not() {
+        return _mm_andnot_si128(this->val,
+                                _mm_setr_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF));
     }
 
     int_128bit shift_right(int shift_num) {
@@ -146,34 +146,32 @@ public:
         return _mm_or_si128(vec, carryover);
     }
 
-    int first_zero() {
-        // TODO: replace this with de Brujin Sequence that is faster than scanning
-        auto *data = (uint8_t*) &this->val;
-        int index = 0;
-        for (int i = 0; i < 16; i++) {
-            for (int m = 0; m < 8; m++) {
-                if (data[i] & (1ULL << m))
-                    index += 1;
-                else
-                    return index;
-            }
-        }
-        return index;
-    }
-
+    /**
+     * Return the index of the lowest set bit.
+     */
     int first_one() {
         // TODO: replace this with de Brujin Sequence that is faster than scanning
-        auto *data = (uint8_t*) &this->val;
-        int index = 0;
-        for (int i = 0; i < 16; i++) {
-            for (int m = 0; m < 8; m++) {
-                if (data[i] & (1ULL << m))
-                    return index;
-                else
-                    index += 1;
+        uint64_t data [MAX_LENGTH / 64] __aligned__;
+        _mm_store_si128((__m128i *) data, this->val);
+        int count = 0;
+        int trailing_zeros;
+        for (uint64_t i : data) {
+            trailing_zeros = static_cast<int>(_tzcnt_u64(i));
+            count += trailing_zeros;
+            if (trailing_zeros < 64) {
+                break;
             }
         }
-        return index;
+        return count;
+    }
+
+    /**
+     * Return the index of the lowest unset bit.
+     */
+    int first_zero() {
+        // TODO: replace this with de Brujin Sequence that is faster than scanning
+        auto data = this->_not();
+        return data.first_one();
     }
 
     int_128bit flip_short_hurdles() {
@@ -181,6 +179,20 @@ public:
         int_128bit reversed_one = _mm_setr_epi32(0, 0, 0, 0x80000000);
         int_128bit mask = this->shift_left(1)._or(reversed_one)._or(this->shift_right(1)._or(one));
         return this->_and(mask);
+    }
+
+    /**
+     * Count the number of set bits in this->val using hardware POPCNT instruction.
+     * Reference: https://stackoverflow.com/questions/17354971/fast-counting-the-number-of-set-bits-in-m128i-register/17355341.
+     * @return an integer showing the number of set bits in this->val.
+     */
+    int pop_count() {
+        const __m128i n_hi = _mm_unpackhi_epi64(this->val, this->val);
+#ifdef _MSC_VER
+        return (int) (__popcnt64(_mm_cvtsi128_si64(n)) + __popcnt64(_mm_cvtsi128_si64(n_hi)));
+#else
+        return (int) (__popcntq(_mm_cvtsi128_si64(this->val)) + __popcntq(_mm_cvtsi128_si64(n_hi)));
+#endif
     }
 };
 
@@ -201,8 +213,8 @@ public:
     // Destination column
     int destination;
 
-    // Expected cost
-    int heuristic;
+    // Position of first hurdle
+    int first_hurdle;
 };
 
 /**
@@ -266,6 +278,10 @@ private:
     // length of read and ref
     int m, n;
 
+    // CIGAR string used in mapper
+    char CIGAR[MAX_LENGTH * 2];
+    int CIGAR_index;
+
 #ifdef DEBUG
     /**
      * Update the matching strings given the lanes we are leaping to and the distance we
@@ -297,6 +313,32 @@ private:
         printf("%s\n%s\n", A_match, B_match);
     }
 #endif
+
+    /**
+     * Update the CIGAR strings given the lanes we are leaping to and the distance we
+     * are moving.
+     * @param best_lane The lane we are leaping to.
+     * @param curr_lane The lane we are currently at.
+     * @param distance The distance we travel on best_lane to reach the highway.
+     */
+    void _update_CIGAR(int best_lane, int curr_lane, int distance) {
+        // update matched strings
+        if (best_lane < curr_lane) {
+            for (int i = best_lane; i < curr_lane; i++) {
+                CIGAR[CIGAR_index] = 'D';
+                CIGAR_index++;
+            }
+        } else {
+            for (int i = curr_lane; i < best_lane; i++) {
+                CIGAR[CIGAR_index] = 'I';
+                CIGAR_index++;
+            }
+        }
+        for (int i = 0; i < distance; i++) {
+            CIGAR[CIGAR_index] = 'M';
+            CIGAR_index++;
+        }
+    }
 
     // list containing the closest highway of each lane
     class highways {
@@ -334,7 +376,7 @@ private:
                 info[lane + k].starting_point = -1;
                 info[lane + k].cost = MAX_LENGTH;
                 info[lane + k].destination = _calculate_destination(m, n, lane);
-                info[lane + k].heuristic = MAX_LENGTH;
+                info[lane + k].first_hurdle = -1;
             }
         }
 
@@ -368,10 +410,10 @@ private:
      */
     void _convert_read() {
         // array of int8 objects to store the converted bits
-        uint8_t A_bit0_t[MAX_LENGTH / 4] __aligned__;
-        uint8_t A_bit1_t[MAX_LENGTH / 4] __aligned__;
-        uint8_t B_bit0_t[MAX_LENGTH / 4] __aligned__;
-        uint8_t B_bit1_t[MAX_LENGTH / 4] __aligned__;
+        uint8_t A_bit0_t[MAX_LENGTH / 8] __aligned__;
+        uint8_t A_bit1_t[MAX_LENGTH / 8] __aligned__;
+        uint8_t B_bit0_t[MAX_LENGTH / 8] __aligned__;
+        uint8_t B_bit1_t[MAX_LENGTH / 8] __aligned__;
 
         // convert string A and B into bits and store in the int8 array
         sse3_convert2bit1(A, A_bit0_t, A_bit1_t);
@@ -385,31 +427,50 @@ private:
     }
 
     /**
+     * Count the effective length
+     * @param lane
+     * @param column
+     * @return
+     */
+    int _count_effective_length(int lane, int column) {
+        // Extract the highway
+        return 0;
+
+    }
+
+    /**
      * Update highway_list for each lane and show the closest highway to the
      * current position. Calculate the cost and record the longest highway.
      *
-     * @return a boolean value indicating whethere there is still a valid highway.
+     * @return a boolean value indicating whether there is still a valid highway.
      */
     bool _update_highway_list() {
-        int smallest_highway_heuristic = MAX_LENGTH;
+        int smallest_highway_heuristic = INT32_MAX;
         int best_highway_lane = 0;
         int first_zero;
+        bool reaching_destination = false; // check if we are reaching destination
         for (int lane = -k; lane <= k; lane++) {
             int start_col = current_column + linear_leap_forward_column(current_lane, lane);
             if ((*highway_list)[lane].starting_point < start_col) {
                 // get closest highway in the lane
                 int_128bit l = (lanes[lane + k]).shift_left(start_col);
+                int_128bit l_without_hurdles = (lanes_without_short_hurdles[lane + k]).shift_left(start_col);
 
                 // update highway in lane
                 first_zero = l.first_zero();
                 int next_hurdle = (l.shift_left(first_zero)).first_one();
+                int length = (l_without_hurdles.shift_left(first_zero)).first_one();
                 (*highway_list)[lane].starting_point = start_col + first_zero;
-                (*highway_list)[lane].length = next_hurdle;
+                (*highway_list)[lane].length = length;
+                (*highway_list)[lane].first_hurdle = next_hurdle;
 
                 // Fix length if reaches destination
-                if (start_col + first_zero + next_hurdle > (*highway_list)[lane].destination) {
-                    (*highway_list)[lane].length = (*highway_list)[lane].destination -\
-                                                   (start_col + first_zero) + 1;
+                if (start_col + first_zero + length > (*highway_list)[lane].destination) {
+                    (*highway_list)[lane].length = std::max(0, (*highway_list)[lane].destination -\
+                                                   (start_col + first_zero) + 1);
+                    (*highway_list)[lane].first_hurdle = std::min((*highway_list)[lane].first_hurdle,
+                                                                  (*highway_list)[lane].length);
+                    reaching_destination = true;
                 }
             }
             // calculate cost to reach the highway
@@ -419,14 +480,20 @@ private:
             (*highway_list)[lane].cost = leap_cost + hurdle_cost;
 
             // calculate expected cost to reach destination
-            leap_cost = linear_leap_lane_penalty(lane, destination_lane);
-            hurdle_cost = (*highway_list)[lane].destination - (*highway_list)[lane].starting_point -
-                    (*highway_list)[lane].length;
-            (*highway_list)[lane].heuristic = leap_cost + (int)(EXPECTED_ERROR_RATE * hurdle_cost);
+            //leap_cost = linear_leap_lane_penalty(lane, destination_lane);
+            //hurdle_cost = (*highway_list)[lane].destination - (*highway_list)[lane].starting_point -
+            //        (*highway_list)[lane].length;
+            //(*highway_list)[lane].heuristic = leap_cost + (int)(EXPECTED_ERROR_RATE * hurdle_cost);
 
-            // get the longest highway
-            if ((*highway_list)[lane].cost - (*highway_list)[lane].length < smallest_highway_heuristic) {
-                smallest_highway_heuristic = (*highway_list)[lane].cost - (*highway_list)[lane].length;
+        }
+        for (int lane = -k; lane <= k; lane++) {
+            // get the best-looking highway
+            int heuristic = (*highway_list)[lane].cost - (*highway_list)[lane].length;
+            if (reaching_destination) {
+                heuristic += linear_leap_lane_penalty(lane, destination_lane);
+            }
+            if (heuristic < smallest_highway_heuristic) {
+                smallest_highway_heuristic = heuristic;
                 best_highway_lane = lane;
             }
         }
@@ -446,12 +513,15 @@ private:
      */
     int _choose_best_highway() {
         int best_lane = highway_list->best_highway_lane;
+        int starting_point = (*highway_list)[best_lane].starting_point;
         int smallest_cost = (*highway_list)[best_lane].cost;
         int smallest_cost_length = 0;
         int smallest_cost_lane = best_lane;
         for (int lane = -k; lane <= k; lane++) {
             if (lane != best_lane) {
-                int new_cost = (*highway_list)[lane].cost + linear_leap_lane_penalty(lane, best_lane);
+                int ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
+                int new_cost = (*highway_list)[lane].cost + linear_leap_lane_penalty(lane, best_lane) \
+                               + std::max(0, starting_point - linear_leap_forward_column(lane, best_lane) - ending_point);
                 if (new_cost < smallest_cost || (new_cost == smallest_cost &&
                     (*highway_list)[lane].length > smallest_cost_length)) {
                     smallest_cost = new_cost;
@@ -476,13 +546,17 @@ private:
 
 #ifdef DEBUG
         // update matched strings
-        int distance = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length -
+        int distance = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].first_hurdle -
                        (current_column + linear_leap_forward_column(current_lane, best_lane));
         _update_match(best_lane, current_lane, distance);
 #endif
+        // Update CIGAR
+        _update_CIGAR(best_lane, current_lane, distance);
+        CIGAR[CIGAR_index] = '\0';
 
+        // Update position
         current_lane = best_lane;
-        current_column = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length;
+        current_column = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].first_hurdle;
 #ifdef DEBUG
         printf("current position: %d, %d\n", current_lane, current_column);
 #endif
@@ -509,8 +583,8 @@ private:
                 mask_bit1 = (B_bit1_mask->shift_left(lane))._xor(*A_bit1_mask);
             }
             auto mask = mask_bit0._or(mask_bit1);
-            //mask = mask.flip_short_hurdles();
             (*this)[lane] = mask;
+            lanes_without_short_hurdles[lane + k] = mask.flip_short_hurdles();
         }
     }
 
@@ -530,6 +604,7 @@ public:
         _convert_read();
         highway_list = new highways(k, m, n);
         lanes = new int_128bit[2 * k + 1];
+        lanes_without_short_hurdles = new int_128bit[2 * k + 1];
         destination_lane = n - m;
         _construct_hurdles();
 
@@ -543,6 +618,9 @@ public:
         strncpy(B_orig, ref, n);
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
+        // initialize CIGAR string
+        //CIGAR = new char[MAX_LENGTH * 2];
+        CIGAR_index = 0;
     }
 
     void run() {
@@ -561,6 +639,8 @@ public:
             // update matched strings
             _update_match(destination_lane, current_lane, hurdle_cost);
 #endif
+            // update CIGAR string
+            _update_CIGAR(destination_lane, current_lane, hurdle_cost);
         }
         printf("total cost: %d", cost);
     }
@@ -569,11 +649,20 @@ public:
         for (int i = -k; i <= k; i++) {
             (*this)[i].print();
         }
+        for (int i = -k; i <= k; i++) {
+            this->lanes_without_short_hurdles[i + k].print();
+        }
+    }
+
+    std::string get_CIGAR() {
+        return CIGAR;
     }
 
     ~hurdle_matrix() {
         delete highway_list;
         delete[] lanes;
+        delete[] lanes_without_short_hurdles;
+        //delete[] CIGAR;
     }
 };
 

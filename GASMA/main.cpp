@@ -9,6 +9,7 @@ int main() {
             );
     matrix->print();
     matrix->run();
+    std::cout << "\n" << matrix->get_CIGAR() << "\n";
     delete matrix;
     return 0;
 }

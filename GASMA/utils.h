@@ -146,6 +146,16 @@ public:
         return _mm_or_si128(vec, carryover);
     }
 
+    int_128bit shift_right_one() {
+        int_128bit one = _mm_setr_epi32(1, 0, 0, 0);
+        return this->shift_right(1)._or(one);
+    }
+
+    int_128bit shift_left_one() {
+        int_128bit reversed_one = _mm_setr_epi32(0, 0, 0, 0x80000000);
+        return this->shift_left(1)._or(reversed_one);
+    }
+
     /**
      * Return the index of the lowest set bit.
      */
@@ -174,11 +184,32 @@ public:
         return data.first_one();
     }
 
+    /**
+     * Flip the short 1 bit in this->val if
+     * 1. both of its neighbors are zeros
+     * 2. both of its 2nd neighbors are zeros or
+     *    either of its 2nd neighbors and either of its 3rd neighbors are zeros.
+     *
+     * @return this->val with short 1 bits flipped.
+     */
     int_128bit flip_short_hurdles() {
-        int_128bit one;
-        int_128bit reversed_one = _mm_setr_epi32(0, 0, 0, 0x80000000);
-        int_128bit mask = this->shift_left(1)._or(reversed_one)._or(this->shift_right(1)._or(one));
-        return this->_and(mask);
+        int_128bit l1 = this->shift_left_one();
+        int_128bit l2 = l1.shift_left_one();
+        int_128bit l3 = l2.shift_left_one();
+        int_128bit r1 = this->shift_right_one();
+        int_128bit r2 = r1.shift_right_one();
+        int_128bit r3 = l2.shift_right_one();
+
+        int_128bit both_neighbor_zero = l1._or(r1);
+        int_128bit both_2nd_neighbor_zero = l2._or(r2);
+        int_128bit either_2nd_neighbor_zero = l2._and(r2);
+        int_128bit either_3rd_neighbor_zero = l3._and(r3);
+
+        int_128bit mask_1 = both_neighbor_zero._or(both_2nd_neighbor_zero);
+        int_128bit mask_2 = both_neighbor_zero._or(either_2nd_neighbor_zero)._or(either_3rd_neighbor_zero);
+
+
+        return this->_and(mask_1._and(mask_2));
     }
 
     /**
@@ -375,7 +406,7 @@ private:
             for (int lane = -k; lane <= k; lane++) {
                 info[lane + k].starting_point = -1;
                 info[lane + k].cost = MAX_LENGTH;
-                info[lane + k].destination = _calculate_destination(m, n, lane);
+                info[lane + k].destination = _calculate_destination(m, n, lane) + 1;
                 info[lane + k].first_hurdle = -1;
             }
         }
@@ -498,12 +529,12 @@ private:
             }
         }
         highway_list->best_highway_lane = best_highway_lane;
-        if ((*highway_list)[best_highway_lane].length <= 0) {
-            return false;
-        }
 #ifdef DEBUG
         highway_list->print();
 #endif
+        if ((*highway_list)[best_highway_lane].length <= 0) {
+            return false;
+        }
         return true;
     }
 
@@ -631,6 +662,8 @@ public:
         // Check if we reach the final destination
         int destination_column = (*highway_list)[destination_lane].destination;
         if (current_lane != destination_lane || current_column < destination_column) {
+            printf("not reaching destination! current %d, %d -> %d; destination %d, %d\n",
+                   current_lane, current_column, (*highway_list)[current_lane].destination, destination_lane, destination_column);
             int leap_cost = linear_leap_lane_penalty(current_lane, destination_lane);
             int hurdle_cost = std::max(0, destination_column - current_column -
                                        linear_leap_forward_column(current_lane, destination_lane));
@@ -662,7 +695,6 @@ public:
         delete highway_list;
         delete[] lanes;
         delete[] lanes_without_short_hurdles;
-        //delete[] CIGAR;
     }
 };
 

@@ -380,12 +380,12 @@ private:
 
         static int _calculate_destination(int _m, int _n, int lane) {
             if (_m >= _n) {
-                if (lane < 0) return _n + lane;
-                else if (lane < _m - _n) return _n;
-                else return _m - lane;
+                if (lane > 0) return _n - lane;
+                else if (lane >= _n - _m) return _n;
+                else return _m + lane;
             } else {
-                if (lane > 0) return _m - lane;
-                else if (lane < _m - _n) return _m;
+                if (lane < 0) return _m + lane;
+                else if (lane <= _n - _m) return _m;
                 else return _n - lane;
             }
         }
@@ -406,7 +406,7 @@ private:
             for (int lane = -k; lane <= k; lane++) {
                 info[lane + k].starting_point = -1;
                 info[lane + k].cost = MAX_LENGTH;
-                info[lane + k].destination = _calculate_destination(m, n, lane) + 1;
+                info[lane + k].destination = _calculate_destination(m, n, lane);
                 info[lane + k].first_hurdle = -1;
             }
         }
@@ -498,7 +498,7 @@ private:
                 // Fix length if reaches destination
                 if (start_col + first_zero + length > (*highway_list)[lane].destination) {
                     (*highway_list)[lane].length = std::max(0, (*highway_list)[lane].destination -\
-                                                   (start_col + first_zero) + 1);
+                                                   (start_col + first_zero));
                     (*highway_list)[lane].first_hurdle = std::min((*highway_list)[lane].first_hurdle,
                                                                   (*highway_list)[lane].length);
                     reaching_destination = true;
@@ -615,7 +615,7 @@ private:
             }
             auto mask = mask_bit0._or(mask_bit1);
             (*this)[lane] = mask;
-            lanes_without_short_hurdles[lane + k] = mask.flip_short_hurdles();
+            lanes_without_short_hurdles[lane + k] = mask;//.flip_short_hurdles();
         }
     }
 

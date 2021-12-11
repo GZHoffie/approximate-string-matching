@@ -1,12 +1,11 @@
 #include <iostream>
-#include "utils.h"
+#include "hurdle_matrix_flipped.h"
 
 int main() {
-    auto* matrix = new hurdle_matrix(
-    "CCGGTTACGATGGCTGCCGGAATCGGGGCTTTCCCACGGTTGCCACTCTGATGAACGTTTTTTAACCGTTCGGTTGCTAACATTAAATAAGTTGAATCGG",
-    "CCGGTTACGATGGCGGCCGGAATCGGGCGCTTTCTCACGGTTGCCACTCTGATGTAGGTTTTTTAACCGTTCGGTTGCTACATTAAAATAAGTTGAATCGGG"
-            ,2
-            );
+    auto* matrix = new hurdle_matrix_flipped(
+                                             "GCCCCGTCCCAGCACAGGCAGCGGGGATGCTCTAGAGCGATGTCGACCTGGGAAAGGCGCTGGGGCGCGCCGAATTCCAAAGGAGTTCCGTAAGGTTCAG",
+                                             "GCTCCTCCCAGCACAGGCAGCGGGATGCTCTAGAGCATTCGCCCTGGGAAGGCGTGGGGCCCCCTAATTCCAAAAGGAGTTGCCCGTAAGGTTCAG",
+                                             7);
     matrix->print();
     matrix->run();
     std::cout << "\n" << matrix->get_CIGAR() << "\n";

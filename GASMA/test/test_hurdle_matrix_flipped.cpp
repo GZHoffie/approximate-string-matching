@@ -1,3 +1,7 @@
+//
+// Created by Zhenhao on 13/12/2021.
+//
+
 #include <iostream>
 #include <string>
 #include <sys/times.h>
@@ -6,12 +10,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include "../hurdle_matrix.h"
 #include "../hurdle_matrix_flipped.h"
 
 #define STRING_DIR "../../pymatch/test/resource/sample.random.dataset.seq"
 #define ANSWER_DIR "../../pymatch/test/resource/nw2.txt"
-#define TEST_NUM 100
+#define TEST_NUM 50000
 #define LOWER_ERROR_LIMIT 0
 #define UPPER_ERROR_LIMIT 10
 
@@ -36,7 +39,7 @@ int main() {
     elp_time.tms_cstime = 0;
     elp_time.tms_cutime = 0;
 
-    auto* matrix = new hurdle_matrix(
+    auto* matrix = new hurdle_matrix_flipped(
             "GCCCCGTCCCAGCACAGGCAGCGGGGATGCTCTAGAGCGATGTCGACCTGGGAAAGGCGCTGGGGCGCGCCGAATTCCAAAGGAGTTCCGTAAGGTTCAG",
             "TTTCGATATGAGCAATTTAGCGTGAGTCGTCTCGTTTTAAGCGACACCTGGGGCTCCGCAGGGTGGAGGTTTGGGTTGATGTACTTTACGACTGAGTA",
             10);
@@ -88,3 +91,4 @@ int main() {
     delete[] optimal_res;
     return 0;
 }
+

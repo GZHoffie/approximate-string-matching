@@ -95,6 +95,23 @@ private:
             }
         }
 
+        void reset(int error, int m, int n) {
+            k = error;
+            best_highway_lane = 0;
+            for (int lane = -k; lane <= k; lane++) {
+                info[lane + k].starting_point = -1;
+                info[lane + k].length = 0;
+                info[lane + k].cost = MAX_LENGTH;
+
+
+                info[lane + k].starting_point_long = -1;
+                info[lane + k].length_long = 0;
+                info[lane + k].cost_long = MAX_LENGTH;
+
+                info[lane + k].destination = _calculate_destination(m, n, lane);
+            }
+        }
+
         ~highways(){
             delete[] info;
         }
@@ -193,8 +210,8 @@ protected:
      */
     int _choose_best_highway() override {
         int best_lane = highway_list->best_highway_lane;
-        int starting_point = (*highway_list)[best_lane].starting_point;
-        int smallest_cost = (*highway_list)[best_lane].cost;
+        int starting_point = (*highway_list)[best_lane].starting_point_long;
+        int smallest_cost = (*highway_list)[best_lane].cost_long;
         int smallest_cost_length = 0;
         int smallest_cost_lane = best_lane;
         for (int lane = -k; lane <= k; lane++) {
@@ -222,10 +239,11 @@ protected:
         int best_lane = _choose_best_highway();
         cost += (*highway_list)[best_lane].cost;
 
-#ifdef DEBUG
         // update matched strings
         int distance = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length -
                        (current_column + linear_leap_forward_column(current_lane, best_lane));
+#ifdef DEBUG
+
         _update_match(best_lane, current_lane, distance);
 #endif
         // Update CIGAR
@@ -248,8 +266,8 @@ protected:
 public:
     hurdle_matrix_flipped(const char *read, const char *ref,
                           int error) : hurdle_matrix(read, ref, error){
-        m = std::min((size_t) MAX_LENGTH, strlen(read));
-        n = std::min((size_t) MAX_LENGTH, strlen(ref));
+        m = std::min(MAX_LENGTH, static_cast<int>(strlen(read)));
+        n = std::min(MAX_LENGTH, static_cast<int>(strlen(ref)));
 
         // assign to class parameters
         strncpy(A, read, m);
@@ -278,7 +296,7 @@ public:
         // construct long highways matrix
         lanes_long = new int_128bit[2 * k + 1];
         for (int lane = -k; lane <= k; lane++) {
-            lanes_long[lane + k] = lanes[lane + k].flip_short_matches().flip_short_hurdles();
+            lanes_long[lane + k] = lanes[lane + k].flip_short_matches();//.flip_short_hurdles();
         }
     }
 
@@ -303,7 +321,7 @@ public:
             // update CIGAR string
             _update_CIGAR(destination_lane, current_lane, hurdle_cost);
         }
-        printf("total cost: %d", cost);
+        //printf("total cost: %d", cost);
     }
 
 
@@ -314,6 +332,34 @@ public:
         for (int i = -k; i <= k; i++) {
             lanes_long[i + k].print();
         }
+    }
+
+    void reset(const char* read, const char* ref, int error) {
+        m = std::min(MAX_LENGTH, static_cast<int>(strlen(read)));
+        n = std::min(MAX_LENGTH, static_cast<int>(strlen(ref)));
+
+        // assign to class parameters
+        strncpy(A, read, m);
+        strncpy(B, ref, n);
+        k = std::max(error, abs(m-n) + 3);
+        _convert_read();
+        highway_list->reset(k, m, n);
+        destination_lane = n - m;
+        _construct_hurdles();
+
+        // define starting position at (0, 0)
+        current_lane = 0;
+        current_column = 0;
+        cost = 0;
+
+#ifdef DISPLAY
+        strncpy(A_orig, read, m);
+        strncpy(B_orig, ref, n);
+        A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
+#endif
+        // initialize CIGAR string
+        //CIGAR = new char[MAX_LENGTH * 2];
+        CIGAR_index = 0;
     }
 
     ~hurdle_matrix_flipped() {

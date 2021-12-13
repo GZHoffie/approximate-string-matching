@@ -265,13 +265,6 @@ protected:
             (*highway_list)[lane].leap_cost = leap_cost;
             (*highway_list)[lane].hurdle_cost = hurdle_cost;
 
-
-            // calculate expected cost to reach destination
-            //leap_cost = linear_leap_lane_penalty(lane, destination_lane);
-            //hurdle_cost = (*highway_list)[lane].destination - (*highway_list)[lane].starting_point -
-            //        (*highway_list)[lane].length;
-            //(*highway_list)[lane].heuristic = leap_cost + (int)(EXPECTED_ERROR_RATE * hurdle_cost);
-
         }
         int heuristic = 0, leap_heuristic = 0;
         for (int lane = -k; lane <= k; lane++) {
@@ -284,7 +277,7 @@ protected:
                         (*highway_list)[lane].starting_point - (*highway_list)[lane].length);
                 leap_heuristic -= final_leap_cost;
             }
-            // printf("lane %d: heuristic %d\n", lane, heuristic);
+            //printf("lane %d: heuristic %d\n", lane, heuristic);
             if (heuristic > largest_total_heuristic || (
                     heuristic == largest_total_heuristic && leap_heuristic > largest_leap_heuristic
                     )) {
@@ -320,8 +313,7 @@ protected:
         int best_intermediate_lane = best_lane;
 
         // check all the other lanes for better highway
-        int intermediate_cost, total_cost, intermediate_length, ending_point;
-        intermediate_length = 0;
+        int intermediate_cost, total_cost, ending_point, intermediate_length = 0;
         for (int lane = -k; lane <= k; lane++) {
             if (lane != best_lane) {
                 ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
@@ -329,7 +321,7 @@ protected:
                 total_cost = intermediate_cost + linear_leap_lane_penalty(lane, best_lane)
                         + std::max(0, starting_point - linear_leap_forward_column(lane, best_lane) - ending_point);
                 if (total_cost <= smallest_total_cost) {
-                    if ((*highway_list)[lane].length - intermediate_cost > intermediate_length - smallest_intermediate_cost) {
+                    if (intermediate_cost <= smallest_intermediate_cost) {
                         smallest_total_cost = total_cost;
                         smallest_intermediate_cost = intermediate_cost;
                         best_intermediate_lane = lane;
@@ -405,7 +397,7 @@ public:
         // assign to class parameters
         strncpy(A, read, m);
         strncpy(B, ref, n);
-        k = std::max(error, abs(m-n) + 3);
+        k = std::max(error, abs(m-n) + 1);
         _convert_read();
         highway_list = new highways(MAX_K, m, n);
         lanes = new int_128bit[2 * MAX_K + 1];
@@ -474,7 +466,7 @@ public:
         // assign to class parameters
         strncpy(A, read, m);
         strncpy(B, ref, n);
-        k = std::max(error, abs(m-n) + 3);
+        k = std::max(error, abs(m-n) + 1);
         _convert_read();
         highway_list->reset(k, m, n);
         destination_lane = n - m;

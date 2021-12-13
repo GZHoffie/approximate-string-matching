@@ -11,9 +11,9 @@
 
 #define STRING_DIR "../../pymatch/test/resource/sample.random.dataset.seq"
 #define ANSWER_DIR "../../pymatch/test/resource/nw2.txt"
-#define TEST_NUM 100
+#define TEST_NUM 100000
 #define LOWER_ERROR_LIMIT 0
-#define UPPER_ERROR_LIMIT 10
+#define UPPER_ERROR_LIMIT 30
 
 int main() {
     std::ifstream string_file, answer_file;
@@ -61,22 +61,24 @@ int main() {
     string_file.close();
     answer_file.close();
 
-    times(&start_time);
+
     for (int i = 0; i < TEST_NUM; i++) {
-        std::cout << read[i].c_str() << std::endl;
-        std::cout << ref[i].c_str() << std::endl;
+        //std::cout << read[i].c_str() << std::endl;
+        //std::cout << ref[i].c_str() << std::endl;
+        times(&start_time);
         matrix->reset(read[i].c_str(), ref[i].c_str(), 10);
         matrix->run();
-        printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
+        times(&end_time);
+        //printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
         if (matrix->get_cost() == optimal_res[i] && optimal_res[i] <= UPPER_ERROR_LIMIT && optimal_res[i] >= LOWER_ERROR_LIMIT) {
             pass += 1;
         }
-
+        elp_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
+        elp_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
     }
-    times(&end_time);
 
-    elp_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
-    elp_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
+
+
 
     printf("total_time: %f\n", (double) elp_time.tms_utime / sysconf(_SC_CLK_TCK) );
     printf("total num: %d\n", total);

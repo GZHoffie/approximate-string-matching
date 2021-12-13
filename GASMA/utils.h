@@ -198,14 +198,26 @@ public:
 
     /**
      * Flip the short 0 bit in this->val if both of its neighbors are ones
-     *
+     * @param threshold the number of short consecutive matches to neglect. Only support 1 and 2.
      * @return this->val with short 0 bits flipped.
      */
-    int_128bit flip_short_matches() {
+    int_128bit flip_short_matches(int threshold) {
         int_128bit l1 = this->shift_left_one();
         int_128bit r1 = this->shift_right_one();
-        int_128bit mask = l1._and(r1);
-        return this->_or(mask);
+        int_128bit l2, r2;
+        if (threshold > 1) {
+            l2 = l1.shift_left_one();
+            r2 = l2.shift_right_one();
+        }
+
+        int_128bit mask_1 = l1._and(r1);
+        if (threshold > 1) {
+            int_128bit mask_2 = l1._and(r2)._or(l2._and(r1));
+            return this->_or(mask_1)._or(mask_2);
+        } else {
+            return this->_or(mask_1);
+        }
+
     }
 
     /**

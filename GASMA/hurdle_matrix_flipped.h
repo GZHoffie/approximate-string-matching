@@ -5,7 +5,7 @@
 #ifndef GASMA_HURDLE_MATRIX_FLIPPED_H
 #define GASMA_HURDLE_MATRIX_FLIPPED_H
 
-#define MAX_K 20  // The maximum probable value for k
+#define MAX_K 30  // The maximum probable value for k
 
 #include "utils.h"
 

@@ -4,5 +4,5 @@ __pycache__
 bin
 build
 resource
-boost
+bowtie2
 cmake-build-debug

@@ -5,7 +5,7 @@
 #ifndef GASMA_HURDLE_MATRIX_H
 #define GASMA_HURDLE_MATRIX_H
 
-#define MAX_K 20  // The maximum probable value for k
+#define MAX_K 30  // The maximum probable value for k
 
 #include "utils.h"
 
@@ -35,6 +35,11 @@ private:
     private:
         // maximum difference allowed
         int k;
+
+        // upper and lower bound for the lane index
+        int lower_bound, upper_bound;
+
+        // highway information
         highway_info* info;
 
         static int _calculate_destination(int _m, int _n, int lane) {
@@ -58,37 +63,41 @@ private:
          *      allowed.
          * @param m, n the length of read and ref string
          */
-        explicit highways(int error, int m, int n) {
+        explicit highways(int error, int m, int n, int lower_bound_, int upper_bound_) {
             k = error;
-            info = new highway_info[2 * k + 1];
+            lower_bound = lower_bound_;
+            upper_bound = upper_bound_;
+            info = new highway_info[2 * MAX_K + 1];
             best_highway_lane = 0;
-            for (int lane = -k; lane <= k; lane++) {
-                info[lane + k].starting_point = -1;
-                info[lane + k].leap_cost = MAX_LENGTH;
-                info[lane + k].hurdle_cost = MAX_LENGTH;
-                info[lane + k].destination = _calculate_destination(m, n, lane);
+            for (int lane = - MAX_K; lane <= MAX_K; lane++) {
+                info[lane + MAX_K].starting_point = -1;
+                info[lane + MAX_K].leap_cost = MAX_LENGTH;
+                info[lane + MAX_K].hurdle_cost = MAX_LENGTH;
+                info[lane + MAX_K].destination = _calculate_destination(m, n, lane);
             }
         }
 
         highway_info& operator[](int lane) {
-            return info[lane + k];
+            return info[lane + MAX_K];
         }
 
         void print() {
-            for (int lane = -k; lane <= k; lane++) {
+            for (int lane = lower_bound; lane <= upper_bound; lane++) {
                 printf("lane: %d, starting point: %d, length: %d, cost: %d\n", lane,
                        (*this)[lane].starting_point, (*this)[lane].length, (*this)[lane].leap_cost + (*this)[lane].hurdle_cost);
             }
         }
 
-        void reset(int error, int m, int n) {
+        void reset(int error, int m, int n, int lower_bound_, int upper_bound_) {
             k = error;
+            lower_bound = lower_bound_;
+            upper_bound = upper_bound_;
             best_highway_lane = 0;
-            for (int lane = -k; lane <= k; lane++) {
-                info[lane + k].starting_point = -1;
-                info[lane + k].leap_cost = MAX_LENGTH;
-                info[lane + k].hurdle_cost = MAX_LENGTH;
-                info[lane + k].destination = _calculate_destination(m, n, lane);
+            for (int lane = lower_bound; lane <= upper_bound; lane++) {
+                info[lane + MAX_K].starting_point = -1;
+                info[lane + MAX_K].leap_cost = MAX_LENGTH;
+                info[lane + MAX_K].hurdle_cost = MAX_LENGTH;
+                info[lane + MAX_K].destination = _calculate_destination(m, n, lane);
             }
         }
 
@@ -102,6 +111,9 @@ private:
 protected:
     // maximum difference allowed
     int k;
+
+    // upper and lower bound for the lane index
+    int lower_bound, upper_bound;
 
     // two strings for comparison
     char A[MAX_LENGTH] __aligned__;
@@ -239,11 +251,11 @@ protected:
         int best_highway_lane = 0;
         int first_zero;
         bool reaching_destination = false; // check if we are reaching destination
-        for (int lane = -k; lane <= k; lane++) {
+        for (int lane = lower_bound; lane <= upper_bound; lane++) {
             int start_col = current_column + linear_leap_forward_column(current_lane, lane);
             if ((*highway_list)[lane].starting_point < start_col) {
                 // get closest highway in the lane
-                int_128bit l = (lanes[lane + k]).shift_left(start_col);
+                int_128bit l = (lanes[lane + MAX_K]).shift_left(start_col);
 
                 // update highway in lane
                 first_zero = l.first_zero();
@@ -267,7 +279,7 @@ protected:
 
         }
         int heuristic = 0, leap_heuristic = 0;
-        for (int lane = -k; lane <= k; lane++) {
+        for (int lane = lower_bound; lane <= upper_bound; lane++) {
             // get the best-looking highway
             heuristic = (*highway_list)[lane].length - (*highway_list)[lane].leap_cost - (*highway_list)[lane].hurdle_cost;
             leap_heuristic = - (*highway_list)[lane].leap_cost;
@@ -314,7 +326,7 @@ protected:
 
         // check all the other lanes for better highway
         int intermediate_cost, total_cost, ending_point, intermediate_length = 0;
-        for (int lane = -k; lane <= k; lane++) {
+        for (int lane = lower_bound; lane <= upper_bound; lane++) {
             if (lane != best_lane) {
                 ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
                 intermediate_cost = (*highway_list)[lane].leap_cost + (*highway_list)[lane].hurdle_cost;
@@ -372,7 +384,7 @@ protected:
      */
     void _construct_hurdles() {
         int_128bit mask_bit0, mask_bit1;
-        for (int lane = -k; lane <= k; lane++) {
+        for (int lane = lower_bound; lane <= upper_bound; lane++) {
             if (lane < 0) {
                 mask_bit0 = (A_bit0_mask->shift_left(-lane))._xor(*B_bit0_mask);
                 mask_bit1 = (A_bit1_mask->shift_left(-lane))._xor(*B_bit1_mask);
@@ -387,7 +399,7 @@ protected:
 
 public:
     int_128bit& operator[](int lane){
-        return lanes[lane + k];
+        return lanes[lane + MAX_K];
     }
 
     hurdle_matrix(const char* read, const char* ref, int error) {
@@ -397,9 +409,16 @@ public:
         // assign to class parameters
         strncpy(A, read, m);
         strncpy(B, ref, n);
-        k = std::max(error, abs(m-n) + 1);
+        k = error;
+        if (m <= n) {
+            lower_bound = -k;
+            upper_bound = n - m + k;
+        } else {
+            lower_bound = n - m - k;
+            upper_bound = k;
+        }
         _convert_read();
-        highway_list = new highways(MAX_K, m, n);
+        highway_list = new highways(MAX_K, m, n, lower_bound, upper_bound);
         lanes = new int_128bit[2 * MAX_K + 1];
         destination_lane = n - m;
         _construct_hurdles();
@@ -415,7 +434,6 @@ public:
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
         // initialize CIGAR string
-        //CIGAR = new char[MAX_LENGTH * 2];
         CIGAR_index = 0;
     }
 
@@ -427,8 +445,6 @@ public:
         // Check if we reach the final destination
         int destination_column = (*highway_list)[destination_lane].destination;
         if (current_lane != destination_lane || current_column < destination_column) {
-            //printf("not reaching destination! current %d, %d -> %d; destination %d, %d\n",
-            //       current_lane, current_column, (*highway_list)[current_lane].destination, destination_lane, destination_column);
             int leap_cost = linear_leap_lane_penalty(current_lane, destination_lane);
             int hurdle_cost = std::max(0, destination_column - current_column -
                                           linear_leap_forward_column(current_lane, destination_lane));
@@ -450,7 +466,7 @@ public:
     }
 
     virtual void print() {
-        for (int i = -k; i <= k; i++) {
+        for (int i = lower_bound; i <= upper_bound; i++) {
             (*this)[i].print();
         }
     }
@@ -466,9 +482,16 @@ public:
         // assign to class parameters
         strncpy(A, read, m);
         strncpy(B, ref, n);
-        k = std::max(error, abs(m-n) + 1);
+        k = error;
+        if (m <= n) {
+            lower_bound = -k;
+            upper_bound = n - m + k;
+        } else {
+            lower_bound = n - m - k;
+            upper_bound = k;
+        }
         _convert_read();
-        highway_list->reset(k, m, n);
+        highway_list->reset(k, m, n, lower_bound, upper_bound);
         destination_lane = n - m;
         _construct_hurdles();
 
@@ -483,7 +506,6 @@ public:
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
         // initialize CIGAR string
-        //CIGAR = new char[MAX_LENGTH * 2];
         CIGAR_index = 0;
     }
 

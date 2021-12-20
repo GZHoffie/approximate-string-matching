@@ -3,11 +3,10 @@
 #include "hurdle_matrix_flipped.h"
 
 int main() {
-    auto* matrix = new hurdle_matrix_flipped(
+    auto* matrix = new hurdle_matrix(
     "AGATAAACGAGGGTTGTAGTGGGACAATAGTCCAACACTTGCCACCTCCCAATGAATAAATACAAGCCTAAGGCGATCCATCCGACTTGATCAACCGGGG",
     "AGATATACGAGGTTGCGAGGGGGCAACTATTGTCCAAAACACTTAGCCACTATCCAATGATATAAACAAGCCTAGAGGCGATCATTGACTGATCACCGGG"
-            ,
-                                             9);
+            ,3);
     matrix->print();
     matrix->run();
     std::cout << "\n" << matrix->get_CIGAR() << "\n";

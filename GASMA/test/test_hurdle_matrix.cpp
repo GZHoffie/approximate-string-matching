@@ -39,7 +39,7 @@ int main() {
     auto* matrix = new hurdle_matrix(
             "GCCCCGTCCCAGCACAGGCAGCGGGGATGCTCTAGAGCGATGTCGACCTGGGAAAGGCGCTGGGGCGCGCCGAATTCCAAAGGAGTTCCGTAAGGTTCAG",
             "TTTCGATATGAGCAATTTAGCGTGAGTCGTCTCGTTTTAAGCGACACCTGGGGCTCCGCAGGGTGGAGGTTTGGGTTGATGTACTTTACGACTGAGTA",
-            10);
+            3);
 
     for (int i = 0; i < TEST_NUM; i++) {
         string_file.ignore();
@@ -66,21 +66,24 @@ int main() {
         //std::cout << read[i].c_str() << std::endl;
         //std::cout << ref[i].c_str() << std::endl;
         times(&start_time);
-        matrix->reset(read[i].c_str(), ref[i].c_str(), 10);
+        matrix->reset(read[i].c_str(), ref[i].c_str(), 9);
         matrix->run();
         times(&end_time);
-        //printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
-        if (matrix->get_cost() == optimal_res[i] && optimal_res[i] <= UPPER_ERROR_LIMIT && optimal_res[i] >= LOWER_ERROR_LIMIT) {
-            pass += 1;
+        printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
+        if (optimal_res[i] <= UPPER_ERROR_LIMIT && optimal_res[i] >= LOWER_ERROR_LIMIT) {
+            elp_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
+            elp_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
+            if (matrix->get_cost() == optimal_res[i]) {
+                pass += 1;
+            }
         }
-        elp_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
-        elp_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
+
     }
 
 
 
 
-    printf("total_time: %f\n", (double) elp_time.tms_utime / sysconf(_SC_CLK_TCK) );
+    printf("avg time: %f\n", (double) elp_time.tms_utime / sysconf(_SC_CLK_TCK) / total * TEST_NUM);
     printf("total num: %d\n", total);
     printf("pass num: %d\n", pass);
 

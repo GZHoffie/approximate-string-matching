@@ -126,7 +126,7 @@ public:
         __m128i vec = this->val;
         if (shift_num >= 64) {
             vec = _mm_slli_si128(vec, 8);
-            shift_num = shift_num % 64;
+            shift_num = shift_num - 64;
         }
         __m128i carryover = _mm_slli_si128(vec, 8);
         carryover = _mm_srli_epi64(carryover, 64 - shift_num);
@@ -138,7 +138,7 @@ public:
         __m128i vec = this->val;
         if (shift_num >= 64) {
             vec = _mm_srli_si128(vec, 8);
-            shift_num = shift_num % 64;
+            shift_num = shift_num - 64;
         }
         __m128i carryover = _mm_srli_si128(vec, 8);
         carryover = _mm_slli_epi64(carryover, 64 - shift_num);
@@ -161,7 +161,7 @@ public:
      */
     int first_one() {
         // TODO: replace this with de Brujin Sequence that is faster than scanning
-        uint64_t data [MAX_LENGTH / 64] __aligned__;
+        uint64_t data [2] __aligned__;
         _mm_store_si128((__m128i *) data, this->val);
         int count = 0;
         int trailing_zeros;
@@ -235,6 +235,189 @@ public:
     }
 };
 
+
+class int_256bit {
+private:
+    __m256i val;
+
+public:
+    /**
+     * Default constructor of the class `int_256bit`. Set value to be 0.
+     */
+    int_256bit() {
+        val = _mm256_setzero_si256();
+    }
+
+    /**
+     * Copy constructor of the class `int_256bit` that copies a __m256i object.
+     */
+    int_256bit(const __m256i & that) {
+        val = that;
+    }
+
+    /**
+     * Copy constructor of the class `int_128bit` that copies an array of uint8_t
+     * of length 32.
+     */
+    int_256bit(const uint8_t * that) {
+        val = *((__m256i*) that);
+    }
+
+    /**
+     * Print the value of `val` in binary format.
+     */
+    void print() {
+        auto *val_uint8 = (uint8_t*) &this->val;
+        print_byte_vector(val_uint8, 32);
+        printf("\n");
+    }
+
+    /**
+     * Print the value of `val` in hexadecimal format.
+     */
+    void print_hex() {
+        auto *v = (uint8_t*) &this->val;
+        for (int i = 0; i < 32; i++) {
+            printf("%x", v[i]);
+        }
+        printf("\n");
+    }
+
+    /**
+     * Perform bit-wise xor with that.
+     * @param that an int_256bit object.
+     * @return this ^ that
+     */
+    int_256bit _xor(const int_256bit &that) {
+        return _mm256_xor_si256(this->val, that.val);
+    }
+
+    /**
+     * Perform bit-wise or with that.
+     * @param that an int_256bit object.
+     * @return this | that
+     */
+    int_256bit _or(const int_256bit &that) {
+        return _mm256_or_si256(this->val, that.val);
+    }
+
+    /**
+    * Perform bit-wise and with that.
+    * @param that an int_256bit object.
+    * @return this & that
+    */
+    int_256bit _and(const int_256bit &that) {
+        return _mm256_and_si256(this->val, that.val);
+    }
+
+    /**
+    * Perform bit-wise not.
+    * @return !this
+    */
+    int_256bit _not() {
+        return _mm256_andnot_si256(this->val,
+                                   _mm256_setr_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+                                                     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF));
+    }
+
+    int_256bit shift_right(int shift_num) {
+        __m256i vec = this->val;
+        if (shift_num >= 64) {
+            vec = _mm256_slli_si256(vec, 8);
+            shift_num = shift_num % 64;
+        }
+        __m256i carryover = _mm256_slli_si256(vec, 8);
+        carryover = _mm256_srli_epi64(carryover, 64 - shift_num);
+        vec = _mm256_slli_epi64(vec, shift_num);
+        return _mm256_or_si256(vec, carryover);
+    }
+
+    int_128bit shift_left(int shift_num) {
+        __m256i vec = this->val;
+        if (shift_num >= 64) {
+            vec = _mm256_srli_si256(vec, 8);
+            shift_num = shift_num % 64;
+        }
+        __m128i carryover = _mm256_srli_si256(vec, 8);
+        carryover = _mm256_slli_si256(carryover, 64 - shift_num);
+        vec = _mm256_srli_si256(vec, shift_num);
+        return _mm256_or_si256(vec, carryover);
+    }
+
+    int_128bit shift_right_one() {
+        int_128bit one = _mm256_setr_epi32(1, 0, 0, 0, 0, 0, 0, 0);
+        return this->shift_right(1)._or(one);
+    }
+
+    int_128bit shift_left_one() {
+        int_128bit reversed_one = _mm256_setr_epi32(0, 0, 0, 0,0, 0, 0, 0x80000000);
+        return this->shift_left(1)._or(reversed_one);
+    }
+
+    /**
+     * Return the index of the lowest set bit.
+     */
+    int first_one() {
+        // TODO: replace this with de Brujin Sequence that is faster than scanning
+        uint64_t data [4] __aligned__;
+        _mm256_store_si256((__m256i *) data, this->val);
+        int count = 0;
+        int trailing_zeros;
+        for (uint64_t i : data) {
+            trailing_zeros = static_cast<int>(_tzcnt_u64(i));
+            count += trailing_zeros;
+            if (trailing_zeros < 64) {
+                break;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Return the index of the lowest unset bit.
+     */
+    int first_zero() {
+        // TODO: replace this with de Brujin Sequence that is faster than scanning
+        auto data = this->_not();
+        return data.first_one();
+    }
+
+    /**
+     * Flip the short 1 bit in this->val if both of its neighbors are zeros
+     *
+     * @return this->val with short 1 bits flipped.
+     */
+    int_256bit flip_short_hurdles() {
+        int_256bit l1 = this->shift_left_one();
+        int_256bit r1 = this->shift_right_one();
+        int_256bit mask = l1._or(r1);
+        return this->_and(mask);
+    }
+
+    /**
+     * Flip the short 0 bit in this->val if both of its neighbors are ones
+     * @param threshold the number of short consecutive matches to neglect. Only support 1 and 2.
+     * @return this->val with short 0 bits flipped.
+     */
+    int_256bit flip_short_matches(int threshold) {
+        int_256bit l1 = this->shift_left_one();
+        int_256bit r1 = this->shift_right_one();
+        int_256bit l2, r2;
+        if (threshold > 1) {
+            l2 = l1.shift_left_one();
+            r2 = l2.shift_right_one();
+        }
+
+        int_256bit mask_1 = l1._and(r1);
+        if (threshold > 1) {
+            int_256bit mask_2 = l1._and(r2)._or(l2._and(r1));
+            return this->_or(mask_1)._or(mask_2);
+        } else {
+            return this->_or(mask_1);
+        }
+
+    }
+};
 
 /**
  * Calculate the linear leaping from lane1 to lane2.

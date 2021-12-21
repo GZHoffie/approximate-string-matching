@@ -332,25 +332,25 @@ public:
         return _mm256_or_si256(vec, carryover);
     }
 
-    int_128bit shift_left(int shift_num) {
+    int_256bit shift_left(int shift_num) {
         __m256i vec = this->val;
         if (shift_num >= 64) {
             vec = _mm256_srli_si256(vec, 8);
             shift_num = shift_num % 64;
         }
-        __m128i carryover = _mm256_srli_si256(vec, 8);
+        __m256i carryover = _mm256_srli_si256(vec, 8);
         carryover = _mm256_slli_si256(carryover, 64 - shift_num);
         vec = _mm256_srli_si256(vec, shift_num);
         return _mm256_or_si256(vec, carryover);
     }
 
-    int_128bit shift_right_one() {
-        int_128bit one = _mm256_setr_epi32(1, 0, 0, 0, 0, 0, 0, 0);
+    int_256bit shift_right_one() {
+        int_256bit one = _mm256_setr_epi32(1, 0, 0, 0, 0, 0, 0, 0);
         return this->shift_right(1)._or(one);
     }
 
-    int_128bit shift_left_one() {
-        int_128bit reversed_one = _mm256_setr_epi32(0, 0, 0, 0,0, 0, 0, 0x80000000);
+    int_256bit shift_left_one() {
+        int_256bit reversed_one = _mm256_setr_epi32(0, 0, 0, 0,0, 0, 0, 0x80000000);
         return this->shift_left(1)._or(reversed_one);
     }
 

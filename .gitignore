@@ -5,5 +5,5 @@ bin
 build
 resource
 boost
-bowtie2
 cmake-build-debug
+LEAP

@@ -13,7 +13,7 @@
 #define ANSWER_DIR "../../pymatch/test/resource/nw2.txt"
 #define TEST_NUM 100000
 #define LOWER_ERROR_LIMIT 0
-#define UPPER_ERROR_LIMIT 30
+#define UPPER_ERROR_LIMIT 5
 
 int main() {
     std::ifstream string_file, answer_file;
@@ -36,10 +36,7 @@ int main() {
     elp_time.tms_cstime = 0;
     elp_time.tms_cutime = 0;
 
-    auto* matrix = new hurdle_matrix(
-            "GCCCCGTCCCAGCACAGGCAGCGGGGATGCTCTAGAGCGATGTCGACCTGGGAAAGGCGCTGGGGCGCGCCGAATTCCAAAGGAGTTCCGTAAGGTTCAG",
-            "TTTCGATATGAGCAATTTAGCGTGAGTCGTCTCGTTTTAAGCGACACCTGGGGCTCCGCAGGGTGGAGGTTTGGGTTGATGTACTTTACGACTGAGTA",
-            3);
+    auto* matrix = new hurdle_matrix;
 
     for (int i = 0; i < TEST_NUM; i++) {
         string_file.ignore();
@@ -66,14 +63,14 @@ int main() {
         //std::cout << read[i].c_str() << std::endl;
         //std::cout << ref[i].c_str() << std::endl;
         times(&start_time);
-        matrix->reset(read[i].c_str(), ref[i].c_str(), 9);
+        matrix->reset(read[i].c_str(), ref[i].c_str(), 2);
         matrix->run();
         times(&end_time);
         printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
         if (optimal_res[i] <= UPPER_ERROR_LIMIT && optimal_res[i] >= LOWER_ERROR_LIMIT) {
             elp_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
             elp_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
-            if (matrix->get_cost() == optimal_res[i]) {
+            if (matrix->get_cost() <= 1.2 * optimal_res[i] && matrix->get_cost() >= 0.8 * optimal_res[i]) {
                 pass += 1;
             }
         }
@@ -82,10 +79,10 @@ int main() {
 
 
 
-
-    printf("avg time: %f\n", (double) elp_time.tms_utime / sysconf(_SC_CLK_TCK) / total * TEST_NUM);
+    printf("avg time: %f\n", (double) elp_time.tms_utime * TEST_NUM / total / sysconf(_SC_CLK_TCK));
     printf("total num: %d\n", total);
     printf("pass num: %d\n", pass);
+    printf("correct rate: %f\n", (double) pass / (double) total);
 
     delete matrix;
     delete[] read;

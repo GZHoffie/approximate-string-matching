@@ -301,6 +301,17 @@ protected:
                                                    (start_col + first_zero));
                     reaching_destination = true;
                 }
+
+                // Append to short highway if the long highway is close enough
+                if ((*long_highway_list)[lane].starting_point != (*highway_list)[lane].starting_point) {
+                    int diff = (*long_highway_list)[lane].starting_point - (*highway_list)[lane].starting_point;
+                    if (diff - (*highway_list)[lane].length <= 2) {
+                        //(*long_highway_list)[lane].starting_point = (*highway_list)[lane].starting_point;
+                        (*long_highway_list)[lane].length += (*highway_list)[lane].length;
+                        (*long_highway_list)[lane].hurdle_cost = (*highway_list)[lane].hurdle_cost + diff - (*highway_list)[lane].length;
+                    }
+                }
+
             }
             // calculate cost to reach the highway
             // FIXME: use function pointer for more complicated penalties.
@@ -315,6 +326,7 @@ protected:
             // choose the best heuristic
             int heuristic_1 = (*highway_list)[lane].length - (*highway_list)[lane].leap_cost - (*highway_list)[lane].hurdle_cost;
             int heuristic_2 = (*long_highway_list)[lane].length - (*long_highway_list)[lane].leap_cost - (*long_highway_list)[lane].hurdle_cost;
+            leap_heuristic = - (*highway_list)[lane].leap_cost;
             if (reaching_destination) {
                 int final_leap_cost = linear_leap_lane_penalty(lane, destination_lane);
                 heuristic_1 -= final_leap_cost + ((*highway_list)[lane].destination -
@@ -323,7 +335,7 @@ protected:
                        (*long_highway_list)[lane].starting_point - (*long_highway_list)[lane].length);
                 leap_heuristic -= final_leap_cost;
             }
-            if (heuristic_1 > heuristic_2) {
+            if (heuristic_1 >= heuristic_2) {
                 (*long_highway_list)[lane].length = (*highway_list)[lane].length;
                 (*long_highway_list)[lane].starting_point = (*highway_list)[lane].starting_point;
                 (*long_highway_list)[lane].leap_cost = (*highway_list)[lane].leap_cost;
@@ -332,7 +344,7 @@ protected:
             } else {
                 heuristic = heuristic_2;
             }
-            leap_heuristic = - (*highway_list)[lane].leap_cost;
+
 
             //printf("lane %d: heuristic %d\n", lane, heuristic);
             if (heuristic > largest_total_heuristic || (

@@ -320,18 +320,20 @@ protected:
         int best_lane_cost = (*highway_list)[best_lane].hurdle_cost + (*highway_list)[best_lane].leap_cost;
 
         // keep the intermediate highway of smallest cost
-        int smallest_intermediate_cost = INT32_MAX;
+        int smallest_intermediate_cost = best_lane_cost;
         int smallest_total_cost = best_lane_cost;
         int best_intermediate_lane = best_lane;
 
         // check all the other lanes for better highway
-        int intermediate_cost, total_cost, ending_point, intermediate_length = 0;
+        best_lane = best_intermediate_lane;
+        int intermediate_cost, total_cost, ending_point;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             if (lane != best_lane) {
                 ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
                 intermediate_cost = (*highway_list)[lane].leap_cost + (*highway_list)[lane].hurdle_cost;
                 total_cost = intermediate_cost + linear_leap_lane_penalty(lane, best_lane)
-                        + std::max(0, starting_point - linear_leap_forward_column(lane, best_lane) - ending_point);
+                             + std::max(0, starting_point - linear_leap_forward_column(lane, best_lane) -
+                                           ending_point);
                 if (total_cost <= smallest_total_cost) {
                     if (intermediate_cost <= smallest_intermediate_cost) {
                         smallest_total_cost = total_cost;
@@ -436,6 +438,8 @@ public:
         // initialize CIGAR string
         CIGAR_index = 0;
     }
+
+    hurdle_matrix() : hurdle_matrix("", "", 1) {}
 
     virtual void run() {
         bool flag = false;

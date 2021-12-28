@@ -444,7 +444,7 @@ class GASMAProjection(ApproximateStringMatching):
 
 if __name__ == "__main__":
     g = GASMAProjection("AGAGCTAAACATGGCCGCACATAAATCGTTTTGAGTTGAAACTTTACCGCTGCATCTATTTTTCTCCTAGAATTATACCGTACACAGCCGACGTTCCACC",
-            "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=2, sight=10, maxZerosIgnored=1, debug=True, skipHurdle=False)
+            "AGAGCTAAACAAGGGGCCCACATTAACGTTTTGAGCTTGAAGATCTTTACCGCGATCTATTTTTTCTCCTAGATTACCGTACACACCGACACTTCCATC", k=2, sight=10, maxZerosIgnored=0, debug=True, skipHurdle=False)
     g.editDistance()
     print(g.num_matches, g.num_consecutive_matches)
     print(g.num_matches / g.num_consecutive_matches)

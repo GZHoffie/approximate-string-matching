@@ -72,7 +72,7 @@ int main() {
         matrix->reset(read[i].c_str(), ref[i].c_str(), 10);
         matrix->run();
         times(&end_time);
-        //printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
+        printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
         if (matrix->get_cost() == optimal_res[i] && optimal_res[i] <= UPPER_ERROR_LIMIT && optimal_res[i] >= LOWER_ERROR_LIMIT) {
             pass += 1;
         }

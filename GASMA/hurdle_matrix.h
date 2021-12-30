@@ -168,6 +168,9 @@ protected:
     // gap extension penalty
     int e;
 
+    // boolean value indicating whether it is the first step
+    bool is_first_step;
+
 #ifdef DISPLAY
     /**
      * Update the matching strings given the lanes we are leaping to and the distance we
@@ -286,7 +289,10 @@ protected:
             }
             // calculate cost to reach the highway
             // FIXME: use function pointer for more complicated penalties.
-            int switch_cost = switch_lane_penalty(current_lane, lane, o, e);
+            int switch_cost = 0;
+            if (alignment_type == GLOBAL || !is_first_step) {
+                switch_cost = switch_lane_penalty(current_lane, lane, o, e);
+            }
             int hurdle_cost = x * ((*highway_list)[lane].starting_point - start_col);
             (*highway_list)[lane].switch_cost = switch_cost;
             (*highway_list)[lane].hurdle_cost = hurdle_cost;
@@ -298,7 +304,10 @@ protected:
             heuristic = (*highway_list)[lane].length - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
             leap_heuristic = - (*highway_list)[lane].switch_cost;
             if (reaching_destination) {
-                int final_switch_cost = switch_lane_penalty(lane, destination_lane, o, e);
+                int final_switch_cost = 0;
+                if (alignment_type == GLOBAL) {
+                    final_switch_cost = switch_lane_penalty(lane, destination_lane, o, e);
+                }
                 heuristic -= final_switch_cost + ((*highway_list)[lane].destination -
                         (*highway_list)[lane].starting_point - (*highway_list)[lane].length);
                 leap_heuristic -= final_switch_cost;
@@ -327,7 +336,7 @@ protected:
      * Choose the best highway according to the updated highway list.
      * @return The lane number where the best highway is.
      */
-    virtual int _choose_best_highway() {
+    int _choose_best_highway() {
         // information about the highway on the best lane
         int best_lane = highway_list->best_highway_lane;
         int starting_point = (*highway_list)[best_lane].starting_point;
@@ -349,8 +358,8 @@ protected:
                 ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
                 intermediate_cost = (*highway_list)[lane].switch_cost + (*highway_list)[lane].hurdle_cost;
                 total_cost = intermediate_cost + switch_lane_penalty(lane, best_lane, o, e)
-                             + std::max(0, starting_point - switch_forward_column(lane, best_lane) -
-                                           ending_point);
+                             + std::max(0, x * (starting_point - switch_forward_column(lane, best_lane) -
+                                           ending_point));
                 if (total_cost <= smallest_total_cost) {
                     if (intermediate_cost <= smallest_intermediate_cost) {
                         smallest_total_cost = total_cost;
@@ -363,7 +372,7 @@ protected:
         return best_intermediate_lane;
     }
 
-    virtual /**
+    /**
      * Perform one step in the greedy algorithm.
      * @return a boolean value indicating whether we complete the matching.
      */
@@ -465,6 +474,7 @@ public:
         highway_list = new highways(MAX_K, m, n, lower_bound, upper_bound);
         lanes = new int_128bit[2 * MAX_K + 1];
         destination_lane = n - m;
+        is_first_step = true;
         _construct_hurdles();
 
         // define starting position at (0, 0)
@@ -499,15 +509,19 @@ public:
             int _e = 1
                     ) : hurdle_matrix("", "", 1, _alignment_type, _x, _o, _e) {}
 
-    virtual void run() {
+    void run() {
         bool flag = false;
         while (!flag) {
             flag = _step();
+            is_first_step = false;
         }
         // Check if we reach the final destination
         int destination_column = (*highway_list)[destination_lane].destination;
         if (current_lane != destination_lane || current_column < destination_column) {
-            int switch_cost = switch_lane_penalty(current_lane, destination_lane, o, e);
+            int switch_cost = 0;
+            if (alignment_type == GLOBAL) {
+                switch_lane_penalty(current_lane, destination_lane, o, e);
+            }
             int hurdle_cost = std::max(0, destination_column - current_column -
                                           switch_forward_column(current_lane, destination_lane));
             cost += switch_cost + hurdle_cost;
@@ -527,7 +541,7 @@ public:
         //printf("total cost: %d", cost);
     }
 
-    virtual void print() {
+    void print() {
         for (int i = lower_bound; i <= upper_bound; i++) {
             (*this)[i].print();
         }
@@ -537,7 +551,7 @@ public:
         return CIGAR;
     }
 
-    virtual void reset(const char* read, const char* ref, int error) {
+    void reset(const char* read, const char* ref, int error) {
         m = std::min(MAX_LENGTH, static_cast<int>(strlen(read)));
         n = std::min(MAX_LENGTH, static_cast<int>(strlen(ref)));
 
@@ -555,6 +569,7 @@ public:
         _convert_read();
         highway_list->reset(k, m, n, lower_bound, upper_bound);
         destination_lane = n - m;
+        is_first_step = true;
         _construct_hurdles();
 
         // define starting position at (0, 0)

@@ -28,6 +28,12 @@
 #define EXPECTED_ERROR_RATE 1
 #endif
 
+/**
+ * Utility function for printing out the data in an array of
+ * uint8_t objects of certain length.
+ * @param data the array of uint8_t needed for printing
+ * @param length the length of this array
+ */
 void print_byte_vector(uint8_t *data, int length) {
     for (int i = 0; i < length; i++) {
         for (int m = 0; m < 8; m++) {
@@ -420,13 +426,26 @@ public:
 };
 
 /**
+ * Alignment options
+ */
+enum alignment_type_t {
+    GLOBAL,
+    SEMI_GLOBAL,
+    LOCAL
+};
+
+
+/**
  * Calculate the linear leaping from lane1 to lane2.
  * @param lane1 The lane number that we come from.
  * @param lane2 The lane number that we are going to.
+ * @param o gap opening penalty
+ * @param e gap extension penalty
  * @return The leaping penalty.
  */
-int linear_leap_lane_penalty(int lane1, int lane2) {
-    return abs(lane1 - lane2);
+int switch_lane_penalty(int lane1, int lane2, int o, int e) {
+    if (lane1 == lane2) return 0;
+    return o + e * (abs(lane1 - lane2) - 1);
 }
 
 /**
@@ -435,7 +454,7 @@ int linear_leap_lane_penalty(int lane1, int lane2) {
  * @param lane2 The lane number that we are going to.
  * @return The number of columns skipped.
  */
-int linear_leap_forward_column(int lane1, int lane2) {
+int switch_forward_column(int lane1, int lane2) {
     if (lane1 * lane2 >= 0) {
         if (abs(lane1) > abs(lane2)) return abs(lane1) - abs(lane2);
         else return 0;

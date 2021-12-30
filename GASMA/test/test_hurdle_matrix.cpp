@@ -2,18 +2,16 @@
 #include <string>
 #include <sys/times.h>
 #include <unistd.h>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include "../hurdle_matrix.h"
-#include "../hurdle_matrix_flipped.h"
 
 #define STRING_DIR "../../pymatch/test/resource/sample.random.dataset.seq"
 #define ANSWER_DIR "../../pymatch/test/resource/nw2.txt"
 #define TEST_NUM 100000
 #define LOWER_ERROR_LIMIT 0
-#define UPPER_ERROR_LIMIT 5
+#define UPPER_ERROR_LIMIT 20
 
 int main() {
     std::ifstream string_file, answer_file;
@@ -70,7 +68,7 @@ int main() {
         if (optimal_res[i] <= UPPER_ERROR_LIMIT && optimal_res[i] >= LOWER_ERROR_LIMIT) {
             elp_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
             elp_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
-            if (matrix->get_cost() <= 1.2 * optimal_res[i] && matrix->get_cost() >= 0.8 * optimal_res[i]) {
+            if (matrix->get_cost() == optimal_res[i]) {
                 pass += 1;
             }
         }

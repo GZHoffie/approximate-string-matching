@@ -7,17 +7,21 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mbmi -m64 -g3 -Wall -msse4.2 -march=nat
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 
-# Options
-option(DEBUG "display all the procedures of the algorithm" OFF)
-option(DISPLAY "display the aligned strings" OFF)
+# set file sets
+set(SHARED_FILES
+        utils.h
+        bit_convert.h
+        bit_convert.cpp
+        mask.cpp mask.h)
+
+set(BENCHMARK_SHARED_FILES benchmark/benchmark_utils.h)
 
 
-add_executable(GASMA-hurdle-matrix test/test_hurdle_matrix.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask.h hurdle_matrix.h hurdle_matrix_flipped.h)
-
-add_executable(GASMA-hurdle-matrix-flipped test/test_hurdle_matrix_flipped.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask.h hurdle_matrix.h hurdle_matrix_flipped.h)
+add_executable(hurdle-matrix test/test_hurdle_matrix.cpp hurdle_matrix.h ${SHARED_FILES})
+add_executable(hurdle-matrix-benchmark hurdle_matrix.h ${BENCHMARK_SHARED_FILES} ${SHARED_FILES})
 
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDISPLAY")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISPLAY")
 
-add_executable(GASMA main.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask.h hurdle_matrix.h hurdle_matrix_flipped.h)
+add_executable(test main.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask.h hurdle_matrix.h)

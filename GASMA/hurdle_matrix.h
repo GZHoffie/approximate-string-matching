@@ -23,7 +23,7 @@ private:
         int length;
 
         // Cost to reach this highway
-        int leap_cost;
+        int switch_cost;
         int hurdle_cost;
 
         // Destination column
@@ -71,7 +71,7 @@ private:
             best_highway_lane = 0;
             for (int lane = - MAX_K; lane <= MAX_K; lane++) {
                 info[lane + MAX_K].starting_point = -1;
-                info[lane + MAX_K].leap_cost = MAX_LENGTH;
+                info[lane + MAX_K].switch_cost = MAX_LENGTH;
                 info[lane + MAX_K].hurdle_cost = MAX_LENGTH;
                 info[lane + MAX_K].destination = _calculate_destination(m, n, lane);
             }
@@ -84,7 +84,7 @@ private:
         void print() {
             for (int lane = lower_bound; lane <= upper_bound; lane++) {
                 printf("lane: %d, starting point: %d, length: %d, cost: %d\n", lane,
-                       (*this)[lane].starting_point, (*this)[lane].length, (*this)[lane].leap_cost + (*this)[lane].hurdle_cost);
+                       (*this)[lane].starting_point, (*this)[lane].length, (*this)[lane].switch_cost + (*this)[lane].hurdle_cost);
             }
         }
 
@@ -95,7 +95,7 @@ private:
             best_highway_lane = 0;
             for (int lane = lower_bound; lane <= upper_bound; lane++) {
                 info[lane + MAX_K].starting_point = -1;
-                info[lane + MAX_K].leap_cost = MAX_LENGTH;
+                info[lane + MAX_K].switch_cost = MAX_LENGTH;
                 info[lane + MAX_K].hurdle_cost = MAX_LENGTH;
                 info[lane + MAX_K].destination = _calculate_destination(m, n, lane);
             }
@@ -148,6 +148,25 @@ protected:
     // CIGAR string used in mapper
     char CIGAR[MAX_LENGTH * 2];
     int CIGAR_index;
+
+    // current position
+    int current_lane;
+    int current_column;
+
+    // total cost
+    int cost;
+
+    // type of alignment
+    alignment_type_t alignment_type;
+
+    // mismatch penalty
+    int x;
+
+    // gap opening penalty
+    int o;
+
+    // gap extension penalty
+    int e;
 
 #ifdef DISPLAY
     /**
@@ -210,12 +229,7 @@ protected:
     }
 
 
-    // current position
-    int current_lane;
-    int current_column;
 
-    // total cost
-    int cost;
 
     /**
      * Convert A and B into int8 objects and store them in A_bit0_t, A_bit1_t,
@@ -252,7 +266,7 @@ protected:
         int first_zero;
         bool reaching_destination = false; // check if we are reaching destination
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
-            int start_col = current_column + linear_leap_forward_column(current_lane, lane);
+            int start_col = current_column + switch_forward_column(current_lane, lane);
             if ((*highway_list)[lane].starting_point < start_col) {
                 // get closest highway in the lane
                 int_128bit l = (lanes[lane + MAX_K]).shift_left(start_col);
@@ -272,22 +286,22 @@ protected:
             }
             // calculate cost to reach the highway
             // FIXME: use function pointer for more complicated penalties.
-            int leap_cost = linear_leap_lane_penalty(current_lane, lane);
-            int hurdle_cost = (*highway_list)[lane].starting_point - start_col;
-            (*highway_list)[lane].leap_cost = leap_cost;
+            int switch_cost = switch_lane_penalty(current_lane, lane, o, e);
+            int hurdle_cost = x * ((*highway_list)[lane].starting_point - start_col);
+            (*highway_list)[lane].switch_cost = switch_cost;
             (*highway_list)[lane].hurdle_cost = hurdle_cost;
 
         }
         int heuristic = 0, leap_heuristic = 0;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             // get the best-looking highway
-            heuristic = (*highway_list)[lane].length - (*highway_list)[lane].leap_cost - (*highway_list)[lane].hurdle_cost;
-            leap_heuristic = - (*highway_list)[lane].leap_cost;
+            heuristic = (*highway_list)[lane].length - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
+            leap_heuristic = - (*highway_list)[lane].switch_cost;
             if (reaching_destination) {
-                int final_leap_cost = linear_leap_lane_penalty(lane, destination_lane);
-                heuristic -= final_leap_cost + ((*highway_list)[lane].destination -
+                int final_switch_cost = switch_lane_penalty(lane, destination_lane, o, e);
+                heuristic -= final_switch_cost + ((*highway_list)[lane].destination -
                         (*highway_list)[lane].starting_point - (*highway_list)[lane].length);
-                leap_heuristic -= final_leap_cost;
+                leap_heuristic -= final_switch_cost;
             }
             //printf("lane %d: heuristic %d\n", lane, heuristic);
             if (heuristic > largest_total_heuristic || (
@@ -317,7 +331,7 @@ protected:
         // information about the highway on the best lane
         int best_lane = highway_list->best_highway_lane;
         int starting_point = (*highway_list)[best_lane].starting_point;
-        int best_lane_cost = (*highway_list)[best_lane].hurdle_cost + (*highway_list)[best_lane].leap_cost;
+        int best_lane_cost = (*highway_list)[best_lane].hurdle_cost + (*highway_list)[best_lane].switch_cost;
 
         // keep the intermediate highway of smallest cost
         int smallest_intermediate_cost = best_lane_cost;
@@ -329,10 +343,13 @@ protected:
         int intermediate_cost, total_cost, ending_point;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             if (lane != best_lane) {
+                if ((*highway_list)[lane].starting_point + switch_forward_column(lane, best_lane) > starting_point) {
+                    continue;
+                }
                 ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
-                intermediate_cost = (*highway_list)[lane].leap_cost + (*highway_list)[lane].hurdle_cost;
-                total_cost = intermediate_cost + linear_leap_lane_penalty(lane, best_lane)
-                             + std::max(0, starting_point - linear_leap_forward_column(lane, best_lane) -
+                intermediate_cost = (*highway_list)[lane].switch_cost + (*highway_list)[lane].hurdle_cost;
+                total_cost = intermediate_cost + switch_lane_penalty(lane, best_lane, o, e)
+                             + std::max(0, starting_point - switch_forward_column(lane, best_lane) -
                                            ending_point);
                 if (total_cost <= smallest_total_cost) {
                     if (intermediate_cost <= smallest_intermediate_cost) {
@@ -355,11 +372,11 @@ protected:
             return true;
         }
         int best_lane = _choose_best_highway();
-        cost += (*highway_list)[best_lane].leap_cost + (*highway_list)[best_lane].hurdle_cost;
+        cost += (*highway_list)[best_lane].switch_cost + (*highway_list)[best_lane].hurdle_cost;
 
         // update matched strings
         int distance = (*highway_list)[best_lane].starting_point + (*highway_list)[best_lane].length -
-                       (current_column + linear_leap_forward_column(current_lane, best_lane));
+                       (current_column + switch_forward_column(current_lane, best_lane));
 #ifdef DISPLAY
         _update_match(best_lane, current_lane, distance);
 #endif
@@ -404,9 +421,34 @@ public:
         return lanes[lane + MAX_K];
     }
 
-    hurdle_matrix(const char* read, const char* ref, int error) {
+    /**
+     * Default Constructor of the hurdle matrix
+     * @param read the read string
+     * @param ref the reference string
+     * @param error the maximum consecutive insert/delete allowed
+     * @param _alignment_type the type of alignment, either GLOBAL, SEMI_GLOBAL or LOCAL (currently not supported).
+     *                       Default: GLOBAL.
+     * @param _x penalty for mismatch. Default: 1.
+     * @param _o gap opening penalty. Default: 0.
+     * @param _e gap extension penalty. Default: 1.
+     */
+    hurdle_matrix(
+            const char* read,
+            const char* ref,
+            int error,
+            alignment_type_t _alignment_type = GLOBAL,
+            int _x = 1,
+            int _o = 1,
+            int _e = 1
+            ) {
         m = std::min(MAX_LENGTH, static_cast<int>(strlen(read)));
         n = std::min(MAX_LENGTH, static_cast<int>(strlen(ref)));
+
+        // Set alignment parameters
+        alignment_type = _alignment_type;
+        x = _x;
+        o = _o;
+        e = _e;
 
         // assign to class parameters
         strncpy(A, read, m);
@@ -439,7 +481,23 @@ public:
         CIGAR_index = 0;
     }
 
-    hurdle_matrix() : hurdle_matrix("", "", 1) {}
+
+
+    /**
+     * Constructor of the class that sets alignment type and penalty scheme only.
+     * Default: use the edit distance penalty scheme.
+     * @param _alignment_type the type of alignment, either GLOBAL, SEMI_GLOBAL or LOCAL (currently not supported).
+     *                       Default: GLOBAL.
+     * @param _x penalty for mismatch. Default: 1.
+     * @param _o gap opening penalty. Default: 0.
+     * @param _e gap extension penalty. Default: 1.
+     */
+    hurdle_matrix(
+            alignment_type_t _alignment_type = GLOBAL,
+            int _x = 1,
+            int _o = 1,
+            int _e = 1
+                    ) : hurdle_matrix("", "", 1, _alignment_type, _x, _o, _e) {}
 
     virtual void run() {
         bool flag = false;
@@ -449,10 +507,10 @@ public:
         // Check if we reach the final destination
         int destination_column = (*highway_list)[destination_lane].destination;
         if (current_lane != destination_lane || current_column < destination_column) {
-            int leap_cost = linear_leap_lane_penalty(current_lane, destination_lane);
+            int switch_cost = switch_lane_penalty(current_lane, destination_lane, o, e);
             int hurdle_cost = std::max(0, destination_column - current_column -
-                                          linear_leap_forward_column(current_lane, destination_lane));
-            cost += leap_cost + hurdle_cost;
+                                          switch_forward_column(current_lane, destination_lane));
+            cost += switch_cost + hurdle_cost;
 #ifdef DISPLAY
             // update matched strings
             _update_match(destination_lane, current_lane, hurdle_cost);

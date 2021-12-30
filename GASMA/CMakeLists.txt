@@ -14,14 +14,12 @@ set(SHARED_FILES
         bit_convert.cpp
         mask.cpp mask.h)
 
-set(BENCHMARK_SHARED_FILES benchmark/benchmark_utils.h)
 
 
-add_executable(hurdle-matrix test/test_hurdle_matrix.cpp hurdle_matrix.h ${SHARED_FILES})
-add_executable(hurdle-matrix-benchmark hurdle_matrix.h ${BENCHMARK_SHARED_FILES} ${SHARED_FILES})
+add_executable(hurdle-matrix test/test_hurdle_matrix.cpp ${SHARED_FILES} hurdle_matrix.h)
+add_executable(benchmark benchmark/benchmark.cpp  ${SHARED_FILES} hurdle_matrix.h)
 
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDISPLAY")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISPLAY")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDISPLAY")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISPLAY")
 
 add_executable(test main.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask.h hurdle_matrix.h)

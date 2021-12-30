@@ -8,6 +8,7 @@
 #define MAX_K 30  // The maximum probable value for k
 
 #include "utils.h"
+#include "bit_convert.h"
 
 class hurdle_matrix {
 private:
@@ -507,8 +508,13 @@ public:
             int _x = 1,
             int _o = 1,
             int _e = 1
-                    ) : hurdle_matrix("", "", 1, _alignment_type, _x, _o, _e) {}
+                    ) : hurdle_matrix("", "", 1, _alignment_type, _x, _o, _e)
+                    {}
 
+
+    /**
+     * Run the greedy algorithm for several steps.
+     */
     void run() {
         bool flag = false;
         while (!flag) {
@@ -541,19 +547,35 @@ public:
         //printf("total cost: %d", cost);
     }
 
+    /**
+     * Print out the hurdle matrix in bit form.
+     */
     void print() {
         for (int i = lower_bound; i <= upper_bound; i++) {
+            printf("lane %d:", i);
             (*this)[i].print();
         }
     }
 
+    /**
+     * Get the CIGAR string. Must be called after run().
+     * @return CIGAR string.
+     */
     std::string get_CIGAR() {
         return CIGAR;
     }
 
-    void reset(const char* read, const char* ref, int error) {
-        m = std::min(MAX_LENGTH, static_cast<int>(strlen(read)));
-        n = std::min(MAX_LENGTH, static_cast<int>(strlen(ref)));
+    /**
+     * Reset the object to get ready for the next alignment.
+     * @param read the read string.
+     * @param read_len length of the read string.
+     * @param ref the reference string.
+     * @param ref_len length of the reference string.
+     * @param error band width
+     */
+    void reset(const char* read, const int read_len, const char* ref, const int ref_len, int error) {
+        m = std::min(MAX_LENGTH, read_len);
+        n = std::min(MAX_LENGTH, ref_len);
 
         // assign to class parameters
         strncpy(A, read, m);
@@ -586,6 +608,16 @@ public:
         CIGAR_index = 0;
     }
 
+    void reset(const char* read, const char* ref, int error) {
+        int read_len = static_cast<int>(strlen(read));
+        int ref_len = static_cast<int>(strlen(ref));
+        reset(read, read_len, ref, ref_len, error);
+    }
+
+    /**
+     * Return the penalty (non-negative) of the alignment.
+     * @return total penalty
+     */
     int get_cost() const {
         return cost;
     }

@@ -434,6 +434,13 @@ enum alignment_type_t {
     LOCAL
 };
 
+/**
+ * Gap penalty type
+ */
+enum gap_penalty_t {
+    LEVENSHTEIN,
+    AFFINE
+};
 
 /**
  * Calculate the linear leaping from lane1 to lane2.

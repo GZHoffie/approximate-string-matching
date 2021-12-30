@@ -11,7 +11,7 @@
 #define ANSWER_DIR "../../pymatch/test/resource/nw2.txt"
 #define TEST_NUM 100000
 #define LOWER_ERROR_LIMIT 0
-#define UPPER_ERROR_LIMIT 20
+#define UPPER_ERROR_LIMIT 5
 
 int main() {
     std::ifstream string_file, answer_file;
@@ -60,11 +60,15 @@ int main() {
     for (int i = 0; i < TEST_NUM; i++) {
         //std::cout << read[i].c_str() << std::endl;
         //std::cout << ref[i].c_str() << std::endl;
+        const char* s1 = read[i].c_str();
+        const char* s2 = ref[i].c_str();
+        int s1Len = (int) read[i].length();
+        int s2Len = (int) ref[i].length();
         times(&start_time);
-        matrix->reset(read[i].c_str(), ref[i].c_str(), 2);
+        matrix->reset(s1, s1Len, s2, s2Len, 2);
         matrix->run();
         times(&end_time);
-        printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
+        //printf("%d %d\n", matrix->get_cost(), optimal_res[i]);
         if (optimal_res[i] <= UPPER_ERROR_LIMIT && optimal_res[i] >= LOWER_ERROR_LIMIT) {
             elp_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
             elp_time.tms_utime += end_time.tms_utime - start_time.tms_utime;

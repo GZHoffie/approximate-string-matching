@@ -526,7 +526,7 @@ public:
         if (current_lane != destination_lane || current_column < destination_column) {
             int switch_cost = 0;
             if (alignment_type == GLOBAL) {
-                switch_lane_penalty(current_lane, destination_lane, o, e);
+                switch_cost = switch_lane_penalty(current_lane, destination_lane, o, e);
             }
             int hurdle_cost = std::max(0, destination_column - current_column -
                                           switch_forward_column(current_lane, destination_lane));

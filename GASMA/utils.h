@@ -450,7 +450,7 @@ enum gap_penalty_t {
  * @param e gap extension penalty
  * @return The leaping penalty.
  */
-int switch_lane_penalty(int lane1, int lane2, int o, int e) {
+int switch_lane_penalty(int lane1, int lane2, int o = 1, int e = 1) {
     if (lane1 == lane2) return 0;
     return o + e * (abs(lane1 - lane2) - 1);
 }

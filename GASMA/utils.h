@@ -167,7 +167,7 @@ public:
      */
     int first_one() {
         // TODO: replace this with de Brujin Sequence that is faster than scanning
-        uint64_t data [2] __aligned__;
+        uint64_t data [2] __aligned;
         _mm_store_si128((__m128i *) data, this->val);
         int count = 0;
         int trailing_zeros;
@@ -365,7 +365,7 @@ public:
      */
     int first_one() {
         // TODO: replace this with de Brujin Sequence that is faster than scanning
-        uint64_t data [4] __aligned__;
+        uint64_t data [4] __aligned;
         _mm256_store_si256((__m256i *) data, this->val);
         int count = 0;
         int trailing_zeros;

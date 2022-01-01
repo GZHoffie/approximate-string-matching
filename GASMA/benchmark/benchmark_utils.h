@@ -13,11 +13,10 @@
 #include <cstdlib>
 #include <fstream>
 
-#include "LEAP/SIMD_ED.h"
+
 #include "parasail/parasail.h"
-
 #include "../hurdle_matrix.h"
-
+#include "LEAP/SIMD_ED.h"
 
 /**
  * Class for benchmarking. Algorithms for benchmarking include
@@ -86,7 +85,7 @@ private:
         parasail_result_t* result;
         // TODO: check what the band width is affecting
         times(&start_time);
-        result = parasail_nw_banded(s1, s1Len, s2, s2Len, -o, -e, k, penalty_matrix);
+        result = parasail_nw_banded(s1, s1Len, s2, s2Len, o, e, k, penalty_matrix);
         times(&end_time);
         nw_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
         nw_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
@@ -104,7 +103,7 @@ private:
             const int s2Len) {
         parasail_result_t* result;
         times(&start_time);
-        result =  parasail_nw_striped_sse41_128_16(s1, s1Len, s2, s2Len, -o, -e, penalty_matrix);
+        result =  parasail_nw_striped_sse41_128_16(s1, s1Len, s2, s2Len, o, e, penalty_matrix);
         times(&end_time);
         nw_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
         nw_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
@@ -168,15 +167,14 @@ private:
             int correct_answer = -1
             ) {
         total_tests += 1;
-        int nw_result, LEAP_result, greedy_result;
+        int nw_result, LEAP_result = 0, greedy_result;
         if (use_SIMD) {
             nw_result = _run_nw_sse(s1, s1Len, s2, s2Len);
         } else {
             nw_result = _run_nw_banded(s1, s1Len, s2, s2Len);
         }
-        LEAP_result = _run_LEAP(s1, s1Len, s2, s2Len);
+        //LEAP_result = _run_LEAP(s1, s1Len, s2, s2Len);
         greedy_result = _run_greedy(s1, s1Len, s2, s2Len);
-
         // check correctness
         if (correct_answer == -1) {
             // set correct answer as the banded NW algorithm

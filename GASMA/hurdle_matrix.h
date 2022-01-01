@@ -8,7 +8,6 @@
 #define MAX_K 30  // The maximum probable value for k
 
 #include "utils.h"
-#include "bit_convert.h"
 
 class hurdle_matrix {
 private:
@@ -117,17 +116,17 @@ protected:
     int lower_bound, upper_bound;
 
     // two strings for comparison
-    char A[MAX_LENGTH] __aligned__;
-    char B[MAX_LENGTH] __aligned__;
+    char A[MAX_LENGTH] __aligned;
+    char B[MAX_LENGTH] __aligned;
 
 #ifdef DISPLAY
     // string storing the original two strings
-    char A_orig[MAX_LENGTH] __aligned__;
-    char B_orig[MAX_LENGTH] __aligned__;
+    char A_orig[MAX_LENGTH] __aligned;
+    char B_orig[MAX_LENGTH] __aligned;
 
     // strings storing the matched strings
-    char A_match[MAX_LENGTH * 2] __aligned__;
-    char B_match[MAX_LENGTH * 2] __aligned__;
+    char A_match[MAX_LENGTH * 2] __aligned;
+    char B_match[MAX_LENGTH * 2] __aligned;
     int A_index, B_index, A_match_index, B_match_index;
 #endif
 
@@ -241,10 +240,10 @@ protected:
      */
     void _convert_read() {
         // array of int8 objects to store the converted bits
-        uint8_t A_bit0_t[MAX_LENGTH / 8] __aligned__;
-        uint8_t A_bit1_t[MAX_LENGTH / 8] __aligned__;
-        uint8_t B_bit0_t[MAX_LENGTH / 8] __aligned__;
-        uint8_t B_bit1_t[MAX_LENGTH / 8] __aligned__;
+        uint8_t A_bit0_t[MAX_LENGTH / 8] __aligned;
+        uint8_t A_bit1_t[MAX_LENGTH / 8] __aligned;
+        uint8_t B_bit0_t[MAX_LENGTH / 8] __aligned;
+        uint8_t B_bit1_t[MAX_LENGTH / 8] __aligned;
 
         // convert string A and B into bits and store in the int8 array
         sse3_convert2bit1(A, A_bit0_t, A_bit1_t);

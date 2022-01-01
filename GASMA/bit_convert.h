@@ -5,8 +5,8 @@
  *      Author: hxin
  */
 
-#ifndef BIT_CONVERT_H_
-#define BIT_CONVERT_H_
+#ifndef GASMA_BIT_CONVERT_H_
+#define GASMA_BIT_CONVERT_H_
 
 #include <cstdint>
 

@@ -6,5 +6,4 @@ build
 resource
 boost
 cmake-build-debug
-GASMA/benchmark/LEAP
 WFA

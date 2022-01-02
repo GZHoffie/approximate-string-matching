@@ -19,7 +19,7 @@ set(LEAP_FILES
         bit_convert.cpp
         bit_convert.h
         mask.cpp
-        mask.h)
+        mask.h LV_BAG.cpp LV_BAG.h)
 
 add_executable(LEAP_SIMD main.cpp)
 add_library(LEAP ${LEAP_FILES})

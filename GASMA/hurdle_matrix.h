@@ -301,7 +301,7 @@ protected:
         int heuristic = 0, leap_heuristic = 0;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             // get the best-looking highway
-            heuristic = (*highway_list)[lane].length - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
+            heuristic = 2 * o * (*highway_list)[lane].length - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
             leap_heuristic = - (*highway_list)[lane].switch_cost;
             if (reaching_destination) {
                 int final_switch_cost = 0;

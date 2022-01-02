@@ -16,7 +16,24 @@
 
 #include "parasail/parasail.h"
 #include "../hurdle_matrix.h"
-#include "LEAP/SIMD_ED.h"
+#include "LEAP_SIMD/LV_BAG.h"
+
+/**
+ * Structure to store the results of alignment.
+ * penalty: the alignment penalty.
+ * CIGAR: CIGAR string storing the result of backtracking.
+ */
+class align_result_t {
+public:
+    int penalty;
+    string CIGAR;
+
+    align_result_t () {
+        penalty = 0;
+        CIGAR = "";
+    }
+};
+
 
 /**
  * Class for benchmarking. Algorithms for benchmarking include
@@ -27,7 +44,7 @@
 class benchmark {
 private:
     // LEAP objects
-    SIMD_ED* ed_obj;
+    LV* ed_obj;
 
     // SIMD Needleman-Wunsch objects
     parasail_matrix_t* penalty_matrix;
@@ -65,82 +82,103 @@ private:
     tms end_time;
     tms nw_time, LEAP_time, greedy_time;
 
+    // align_result_t objects to store the alignment results
+    align_result_t *nw_results, *LEAP_results, *greedy_results;
+
     // check correctness of the algorithm
     int total_tests;
     int nw_correct, LEAP_correct, greedy_correct;
 
     /**
-     * Run banded Needleman-Wunsch algorithm on two strings s1 and s2.
+     * Run banded Needleman-Wunsch algorithm on two strings s1 and s2. Store the results
+     * in nw_results.
      * @param s1 the read string.
      * @param s1Len length of the read string.
      * @param s2 the reference string.
      * @param s2Len length of the reference string.
-     * @return the penalty of alignment (non-negative).
      */
-    int _run_nw_banded(
+    void _run_nw(
             const char * s1,
             const int s1Len,
             const char * s2,
             const int s2Len) {
         parasail_result_t* result;
+        parasail_cigar_t* cigar_result;
         // TODO: check what the band width is affecting
         times(&start_time);
-        result = parasail_nw_banded(s1, s1Len, s2, s2Len, o, e, k, penalty_matrix);
+        result = parasail_nw_trace(s1, s1Len, s2, s2Len, o, e, penalty_matrix);
+        cigar_result = parasail_result_get_cigar(result, s1, s1Len, s2, s2Len, penalty_matrix);
+        nw_results->CIGAR = parasail_cigar_decode(cigar_result);
+        nw_results->penalty = - result->score;
         times(&end_time);
+
         nw_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
         nw_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
-        return -result->score;
+
+        parasail_result_free(result);
+        parasail_cigar_free(cigar_result);
     }
 
     /**
-     * Run Needleman-Wunsch algorithm with SSE acceleration on two strings s1 and s2.
-     * @return the penalty of alignment (non-negative).
+     * Run Needleman-Wunsch algorithm with SSE acceleration on two strings s1 and s2. Store the results
+     * in nw_results.
      */
-    int _run_nw_sse(
+    void _run_nw_sse(
             const char * s1,
             const int s1Len,
             const char * s2,
             const int s2Len) {
         parasail_result_t* result;
+        parasail_cigar_t* cigar_result;
+
         times(&start_time);
-        result =  parasail_nw_striped_sse41_128_16(s1, s1Len, s2, s2Len, o, e, penalty_matrix);
+        result =  parasail_nw_trace_striped_sse41_128_16(s1, s1Len, s2, s2Len, o, e, penalty_matrix);
+        cigar_result = parasail_result_get_cigar(result, s1, s1Len, s2, s2Len, penalty_matrix);
+        nw_results->CIGAR = parasail_cigar_decode(cigar_result);
+        nw_results->penalty = - result->score;
         times(&end_time);
+
         nw_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
         nw_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
-        return -result->score;
+
+        parasail_result_free(result);
+        parasail_cigar_free(cigar_result);
     }
 
     /**
-     * Run LEAP algorithm with SIMD acceleration on two strings s1 and s2.
-     * @return the penalty of alignment (non-negative).
+     * Run LEAP algorithm with SIMD acceleration on two strings s1 and s2. Store the results
+     * in LEAP_results.
      */
-    int _run_LEAP(
+    void _run_LEAP(
             char * s1,
             int s1Len,
             char * s2,
             int s2Len
             ) {
         int length = std::max(s1Len, s2Len);
+
         times(&start_time);
         ed_obj->load_reads(s1, s2, length);
-        ed_obj->calculate_masks();
+        //ed_obj->calculate_masks();
         ed_obj->reset();
         ed_obj->run();
         // TODO: check the efficiency of this backtrack step.
         if (ed_obj->check_pass()) {
             ed_obj->backtrack();
         }
+        LEAP_results->penalty = ed_obj->get_ED();
+        LEAP_results->CIGAR = ed_obj->get_CIGAR();
         times(&end_time);
+
         LEAP_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
         LEAP_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
-        return ed_obj->get_ED();
     }
 
     /**
-     * Run greedy algorithm with SIMD acceleration on two strings s1 and s2.
-     * @return the penalty of alignment (non-negative).
+     * Run greedy algorithm on two strings s1 and s2.
+     * Store the results in greedy_results.
      */
-    int _run_greedy(
+    void _run_greedy(
             const char * s1,
             const int s1Len,
             const char * s2,
@@ -149,10 +187,12 @@ private:
         times(&start_time);
         matrix->reset(s1, s1Len, s2, s2Len, k);
         matrix->run();
+        greedy_results->penalty = matrix->get_cost();
+        greedy_results->CIGAR = matrix->get_CIGAR();
         times(&end_time);
+
         greedy_time.tms_stime += end_time.tms_stime - start_time.tms_stime;
         greedy_time.tms_utime += end_time.tms_utime - start_time.tms_utime;
-        return matrix->get_cost();
     }
 
     /**
@@ -164,25 +204,26 @@ private:
             int s1Len,
             char * s2,
             int s2Len,
-            int correct_answer = -1
+            int correct_answer = INT32_MIN
             ) {
         total_tests += 1;
-        int nw_result, LEAP_result = 0, greedy_result;
         if (use_SIMD) {
-            nw_result = _run_nw_sse(s1, s1Len, s2, s2Len);
+            _run_nw_sse(s1, s1Len, s2, s2Len);
         } else {
-            nw_result = _run_nw_banded(s1, s1Len, s2, s2Len);
+            _run_nw(s1, s1Len, s2, s2Len);
         }
-        //LEAP_result = _run_LEAP(s1, s1Len, s2, s2Len);
-        greedy_result = _run_greedy(s1, s1Len, s2, s2Len);
+        _run_LEAP(s1, s1Len, s2, s2Len);
+        _run_greedy(s1, s1Len, s2, s2Len);
+        //printf("%s\n%s\n", s1, s2);
+        //printf("%d, %d\n", nw_results->penalty, greedy_results->penalty);
         // check correctness
-        if (correct_answer == -1) {
+        if (correct_answer == INT32_MIN) {
             // set correct answer as the banded NW algorithm
-            correct_answer = nw_result;
+            correct_answer = nw_results->penalty;
         }
-        nw_correct += (nw_result == correct_answer);
-        LEAP_correct += (LEAP_result == correct_answer);
-        greedy_correct += (greedy_result == correct_answer);
+        nw_correct += (nw_results->penalty == correct_answer);
+        LEAP_correct += (LEAP_results->penalty == correct_answer);
+        greedy_correct += (greedy_results->penalty == correct_answer);
     }
 
 
@@ -206,21 +247,14 @@ public:
         read = new std::string[max_tests];
         ref = new std::string[max_tests];
         answers = new int[max_tests];
-        std::fill_n(answers, max_tests, -1);
+        std::fill_n(answers, max_tests, INT32_MIN);
 
         // initialize the objects used for benchmarking
         use_SIMD = _use_SIMD;
-        ed_obj = new SIMD_ED;
+        ed_obj = new LV;
         matrix = new hurdle_matrix(GLOBAL, x, o, e);
         penalty_matrix = parasail_matrix_create("ACGT", 0, -x);
-        if (o == e && o == 1) {
-            // Levenshtein distance
-            // FIXME: here it seems that the edit distance is calculated
-            ed_obj->init_levenshtein(k, ED_GLOBAL, use_SIMD);
-        } else {
-            // Affine gap penalty
-            ed_obj->init_affine(k, k * 3, ED_GLOBAL, x, o, e, use_SIMD);
-        }
+        ed_obj->init(k, 100, ED_GLOBAL, x, o, e);
 
         // Initialize time objects
         nw_time.tms_stime = 0;
@@ -241,6 +275,12 @@ public:
         // initialize correctness record
         total_tests = 0;
         nw_correct = LEAP_correct = greedy_correct = 0;
+
+        // Initialize results
+        nw_results = new align_result_t;
+        LEAP_results = new align_result_t;
+        greedy_results = new align_result_t;
+
     }
 
     /**
@@ -324,6 +364,9 @@ public:
     ~benchmark() {
         delete matrix;
         delete ed_obj;
+        delete nw_results;
+        delete LEAP_results;
+        delete greedy_results;
         delete[] read;
         delete[] ref;
         delete[] answers;

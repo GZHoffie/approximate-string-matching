@@ -35,6 +35,7 @@ public:
 };
 
 
+
 /**
  * Class for benchmarking. Algorithms for benchmarking include
  * 1. Greedy
@@ -352,13 +353,13 @@ public:
     void print() {
         printf("===================== Benchmark Results =====================\n");
         printf("Total number of alignments: %d\n[Time]\n", total_tests);
-        printf("=> Needleman-Wunsch time: %f s\n", (double) nw_time.tms_utime / sysconf(_SC_CLK_TCK));
-        printf("=> LEAP time: %f s\n", (double) LEAP_time.tms_utime / sysconf(_SC_CLK_TCK));
-        printf("=> Greedy time: %f s\n", (double) greedy_time.tms_utime / sysconf(_SC_CLK_TCK));
-        printf("[Accuracy]\n");
-        printf("=> Needleman-Wunsch correct rate: %f\n", (double) nw_correct / total_tests);
-        printf("=> LEAP correct rate: %f\n", (double) LEAP_correct / total_tests);
-        printf("=> Greedy correct rate: %f\n", (double) greedy_correct / total_tests);
+        printf("=> Needleman-Wunsch | %.3f s\n", (double) nw_time.tms_utime / sysconf(_SC_CLK_TCK));
+        printf("=> LEAP             | %.3f s\n", (double) LEAP_time.tms_utime / sysconf(_SC_CLK_TCK));
+        printf("=> Greedy           | %.3f s\n", (double) greedy_time.tms_utime / sysconf(_SC_CLK_TCK));
+        printf("[Accuracy] (percentage of alignments matching optimal penalty)\n");
+        printf("=> Needleman-Wunsch | %.3f %%\n", (double) nw_correct / total_tests * 100);
+        printf("=> LEAP             | %.3f %%\n", (double) LEAP_correct / total_tests * 100);
+        printf("=> Greedy           | %.3f %%\n", (double) greedy_correct / total_tests * 100);
     }
 
     ~benchmark() {
@@ -371,6 +372,49 @@ public:
         delete[] ref;
         delete[] answers;
     }
+};
+
+
+/*
+ *                             The MIT License
+ *
+ * Wavefront Alignments Algorithms
+ * Copyright (c) 2017 by Santiago Marco-Sola  <santiagomsola@gmail.com>
+ *
+ * This file is part of Wavefront Alignments Algorithms.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * PROJECT: Wavefront Alignments Algorithms
+ * AUTHOR(S): Santiago Marco-Sola <santiagomsola@gmail.com>
+ * DESCRIPTION: Sequence Generator for benchmarking pairwise algorithms
+ */
+
+
+/**
+ * Utility class to generate simulated dataset of read and ref strings
+ * with certain amount of errors. This class is adopted from
+ * https://github.com/smarco/WFA/blob/master/tools/generate_dataset.c
+ */
+class Dataset {
+private:
+    char alphabet[4];
 };
 
 

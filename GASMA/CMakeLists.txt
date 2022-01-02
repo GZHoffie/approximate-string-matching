@@ -29,7 +29,7 @@ ADD_SUBDIRECTORY(benchmark/LEAP_SIMD)
 
 
 add_executable(hurdle-matrix test/test_hurdle_matrix.cpp ${SHARED_FILES} hurdle_matrix.h)
-add_executable(hurdle-matrix-benchmark benchmark/benchmark.cpp ${SHARED_FILES} hurdle_matrix.h )
+add_executable(hurdle-matrix-benchmark benchmark/benchmark.cpp ${SHARED_FILES} hurdle_matrix.h benchmark/benchmark_coverage.h)
 
 TARGET_LINK_DIRECTORIES(hurdle-matrix-benchmark PUBLIC
         benchmark/parasail/build

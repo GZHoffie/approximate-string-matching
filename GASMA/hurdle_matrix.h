@@ -8,6 +8,7 @@
 #define MAX_K 30  // The maximum probable value for k
 
 #include "utils.h"
+#include <cstdlib>
 
 class hurdle_matrix {
 private:
@@ -146,8 +147,7 @@ protected:
     int m, n;
 
     // CIGAR string used in mapper
-    char CIGAR[MAX_LENGTH * 2];
-    int CIGAR_index;
+    std::string CIGAR;
 
     // current position
     int current_lane;
@@ -210,25 +210,20 @@ protected:
      * are moving.
      * @param best_lane The lane we are leaping to.
      * @param curr_lane The lane we are currently at.
-     * @param distance The distance we travel on best_lane to reach the highway.
+     * @param mismatches The number of mismatches we need to go through before entering highway.
+     * @param matches The length of highway we are going through.
      */
-    void _update_CIGAR(int best_lane, int curr_lane, int distance) {
+    void _update_CIGAR(int best_lane, int curr_lane, int mismatches, int matches) {
         // update matched strings
         if (best_lane < curr_lane) {
-            for (int i = best_lane; i < curr_lane; i++) {
-                CIGAR[CIGAR_index] = 'D';
-                CIGAR_index++;
-            }
-        } else {
-            for (int i = curr_lane; i < best_lane; i++) {
-                CIGAR[CIGAR_index] = 'I';
-                CIGAR_index++;
-            }
+            CIGAR = CIGAR + std::to_string(curr_lane - best_lane) + "I";
+        } else if (best_lane > curr_lane) {
+            CIGAR = CIGAR + std::to_string(best_lane - curr_lane) + "D";
         }
-        for (int i = 0; i < distance; i++) {
-            CIGAR[CIGAR_index] = 'M';
-            CIGAR_index++;
-        }
+        if (mismatches > 0)
+            CIGAR = CIGAR + std::to_string(mismatches) + "X";
+        if (matches > 0)
+            CIGAR = CIGAR + std::to_string(matches) + "=";
     }
 
 
@@ -301,7 +296,7 @@ protected:
         int heuristic = 0, leap_heuristic = 0;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             // get the best-looking highway
-            heuristic = 2 * o * (*highway_list)[lane].length - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
+            heuristic = (*highway_list)[lane].length - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
             leap_heuristic = - (*highway_list)[lane].switch_cost;
             if (reaching_destination) {
                 int final_switch_cost = 0;
@@ -390,7 +385,7 @@ protected:
         _update_match(best_lane, current_lane, distance);
 #endif
         // Update CIGAR
-        _update_CIGAR(best_lane, current_lane, distance);
+        _update_CIGAR(best_lane, current_lane, distance - (*highway_list)[best_lane].length, (*highway_list)[best_lane].length);
 
         // Update position
         current_lane = best_lane;
@@ -488,7 +483,7 @@ public:
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
         // initialize CIGAR string
-        CIGAR_index = 0;
+        CIGAR = "";
     }
 
 
@@ -527,22 +522,22 @@ public:
             if (alignment_type == GLOBAL) {
                 switch_cost = switch_lane_penalty(current_lane, destination_lane, o, e);
             }
-            int hurdle_cost = std::max(0, destination_column - current_column -
-                                          switch_forward_column(current_lane, destination_lane));
+            int distance = destination_column - current_column -
+                           switch_forward_column(current_lane, destination_lane);
+            int hurdle_cost = std::max(0, x * distance);
             cost += switch_cost + hurdle_cost;
 #ifdef DISPLAY
             // update matched strings
             _update_match(destination_lane, current_lane, hurdle_cost);
 #endif
             // update CIGAR string
-            _update_CIGAR(destination_lane, current_lane, hurdle_cost);
+            _update_CIGAR(destination_lane, current_lane, distance, 0);
         }
 #ifdef DISPLAY
         A_match[A_match_index] = '\0';
         B_match[B_match_index] = '\0';
         printf("%s\n%s\n", A_match, B_match);
 #endif
-        CIGAR[CIGAR_index] = '\0';
         //printf("total cost: %d", cost);
     }
 
@@ -604,7 +599,7 @@ public:
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
         // initialize CIGAR string
-        CIGAR_index = 0;
+        CIGAR = "";
     }
 
     void reset(const char* read, const char* ref, int error) {

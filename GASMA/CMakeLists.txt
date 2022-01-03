@@ -46,5 +46,5 @@ TARGET_LINK_LIBRARIES(hurdle-matrix-benchmark LEAP parasail)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDISPLAY")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISPLAY")
 
-add_executable(test main.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask.h hurdle_matrix.h)
+add_executable(test main.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask.h hurdle_matrix.h benchmark/benchmark_coverage.h)
 SET_TARGET_PROPERTIES(test PROPERTIES COMPILE_FLAGS "-DDEBUG -DDISPLAY")

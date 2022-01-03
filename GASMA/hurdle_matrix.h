@@ -9,6 +9,7 @@
 
 #include "utils.h"
 #include <cstdlib>
+#include <limits>
 
 class hurdle_matrix {
 private:
@@ -26,6 +27,10 @@ private:
         // Cost to reach this highway
         int switch_cost;
         int hurdle_cost;
+
+        // Number of actions to reach this highway
+        int num_switches;
+        int num_hurdles;
 
         // Destination column
         int destination;
@@ -74,6 +79,8 @@ private:
                 info[lane + MAX_K].starting_point = -1;
                 info[lane + MAX_K].switch_cost = MAX_LENGTH;
                 info[lane + MAX_K].hurdle_cost = MAX_LENGTH;
+                info[lane + MAX_K].num_switches = MAX_LENGTH;
+                info[lane + MAX_K].num_hurdles = MAX_LENGTH;
                 info[lane + MAX_K].destination = _calculate_destination(m, n, lane);
             }
         }
@@ -98,6 +105,8 @@ private:
                 info[lane + MAX_K].starting_point = -1;
                 info[lane + MAX_K].switch_cost = MAX_LENGTH;
                 info[lane + MAX_K].hurdle_cost = MAX_LENGTH;
+                info[lane + MAX_K].num_switches = MAX_LENGTH;
+                info[lane + MAX_K].num_hurdles = MAX_LENGTH;
                 info[lane + MAX_K].destination = _calculate_destination(m, n, lane);
             }
         }
@@ -259,13 +268,15 @@ protected:
      * @return a boolean value indicating whether there is still a valid highway.
      */
     bool _update_highway_list() {
-        int largest_total_heuristic = INT32_MIN, largest_leap_heuristic = INT32_MIN;
+        float largest_total_heuristic = - std::numeric_limits<float>::infinity();
+        float largest_leap_heuristic = - std::numeric_limits<float>::infinity();
         int best_highway_lane = 0;
         int first_zero;
         bool reaching_destination = false; // check if we are reaching destination
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             int start_col = current_column + switch_forward_column(current_lane, lane);
             if ((*highway_list)[lane].starting_point < start_col) {
+                (*highway_list)[lane].num_switches = abs(lane - current_lane);
                 // get closest highway in the lane
                 int_128bit l = (lanes[lane + MAX_K]).shift_left(start_col);
 
@@ -288,25 +299,32 @@ protected:
             if (alignment_type == GLOBAL || !is_first_step) {
                 switch_cost = switch_lane_penalty(current_lane, lane, o, e);
             }
-            int hurdle_cost = x * ((*highway_list)[lane].starting_point - start_col);
+            (*highway_list)[lane].num_hurdles = (*highway_list)[lane].starting_point - start_col;
+            int hurdle_cost = x * (*highway_list)[lane].num_hurdles;
             (*highway_list)[lane].switch_cost = switch_cost;
             (*highway_list)[lane].hurdle_cost = hurdle_cost;
 
         }
-        int heuristic = 0, leap_heuristic = 0;
+        float heuristic = 0, leap_heuristic = 0;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             // get the best-looking highway
-            heuristic = (*highway_list)[lane].length - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
+            int current_cost = - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
+            int total_cost_upper_bound = 2 * o * (*highway_list)[lane].length +
+                                         (2 * o - x) * (*highway_list)[lane].num_hurdles +
+                                         (o - e) * std::max(0, (*highway_list)[lane].num_switches - 1);
+            heuristic = current_cost * 7 + total_cost_upper_bound;
             leap_heuristic = - (*highway_list)[lane].switch_cost;
+
             if (reaching_destination) {
                 int final_switch_cost = 0;
                 if (alignment_type == GLOBAL) {
                     final_switch_cost = switch_lane_penalty(lane, destination_lane, o, e);
                 }
-                heuristic -= final_switch_cost + ((*highway_list)[lane].destination -
+                heuristic = current_cost - final_switch_cost - x * ((*highway_list)[lane].destination -
                         (*highway_list)[lane].starting_point - (*highway_list)[lane].length);
                 leap_heuristic -= final_switch_cost;
             }
+
             //printf("lane %d: heuristic %d\n", lane, heuristic);
             if (heuristic > largest_total_heuristic || (
                     heuristic == largest_total_heuristic && leap_heuristic > largest_leap_heuristic

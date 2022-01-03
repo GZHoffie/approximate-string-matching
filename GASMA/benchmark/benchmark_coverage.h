@@ -14,7 +14,7 @@
  * 1) each of the characters match in s1 and s2,
  * 2) the length of the substring is larger or equal to threshold.
  *
- * @requires CIGAR string is obtained from aligning s1 and s2.
+ * @require CIGAR string is obtained from aligning s1 and s2.
  * Supported CIGAR characters: 'I' - insert, 'D' - delete, 'X' - mismatch, '='/'M' - match.
  *
  * @param s1 the read string.
@@ -50,7 +50,7 @@ std::string long_consecutive_matching_substring(
                 break;
             case '=':
             case 'M':
-                for (int i = 0; i < length; i++) {
+                for (size_t i = 0; i < length; i++) {
                     if (length >= threshold) {
                         LCM += s1[s1_index];
                     }
@@ -61,13 +61,33 @@ std::string long_consecutive_matching_substring(
                 break;
             default:
                 break;
-
         }
-
     }
     return LCM;
+}
 
+/**
+ * Check if string s1 covers string s2, that is, if we can construct s1 simply by inserting characters into s2.
+ * @return boolean value of whether s1 covers s2.
+ */
+bool covers(const std::string& s1, const std::string& s2) {
+    size_t n, m;
+    n = s1.length();
+    m = s2.length();
 
+    if (n < m) {
+        return false;
+    }
+    int i = 0;
+    for (size_t j = 0; j < m; j++) {
+        if (i >= n) return false;
+        while (s1.at(i) != s2.at(j)) {
+            i++;
+            if (i >= n) return false;
+        }
+        i++;
+    }
+    return true;
 }
 
 

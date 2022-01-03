@@ -18,6 +18,8 @@
 #include "../hurdle_matrix.h"
 #include "LEAP_SIMD/LV_BAG.h"
 
+#include "benchmark_coverage.h"
+
 /**
  * Structure to store the results of alignment.
  * penalty: the alignment penalty.
@@ -89,6 +91,7 @@ private:
     // check correctness of the algorithm
     int total_tests;
     int nw_correct, LEAP_correct, greedy_correct;
+    int greedy_coverage;
 
     /**
      * Run banded Needleman-Wunsch algorithm on two strings s1 and s2. Store the results
@@ -197,6 +200,30 @@ private:
     }
 
     /**
+     * Check if the LCM contained in the alignment 1 (as indicated in CIGAR1) covers that contained
+     * in alignment 2 (as indicated in CIGAR2).
+     * @param s1 the read string.
+     * @param s2 the reference string.
+     * @param CIGAR1 the CIGAR string given in the first alignment.
+     * @param CIGAR2 the CIGAR string given in the second alignment.
+     * @param threshold1 the threshold for consecutive matching in alignment 1 to be considered as LCM.
+     * @param threshold2 the threshold for consecutive matching in alignment 2 to be considered as LCM.
+     * @return a boolean value indicating whether alignment 1 covers alignment 2.
+     */
+    bool _check_coverage(
+            char * s1,
+            char * s2,
+            string CIGAR1,
+            string CIGAR2,
+            int threshold1,
+            int threshold2
+            ) {
+        std::string LCM1 = long_consecutive_matching_substring(s1, s2, CIGAR1, threshold1);
+        std::string LCM2 = long_consecutive_matching_substring(s1, s2, CIGAR2, threshold2);
+        return covers(LCM1, LCM2);
+    }
+
+    /**
      * Run benchmark on the three algorithms and record whether the results are correct.
      * @param correct_answer the correct cost of this alignment (non-negative).
      */
@@ -225,6 +252,7 @@ private:
         nw_correct += (nw_results->penalty == correct_answer);
         LEAP_correct += (LEAP_results->penalty == correct_answer);
         greedy_correct += (greedy_results->penalty == correct_answer);
+        greedy_coverage += (int) (_check_coverage(s1, s2, greedy_results->CIGAR, nw_results->CIGAR, 1, 3));
     }
 
 
@@ -360,6 +388,8 @@ public:
         printf("=> Needleman-Wunsch | %.3f %%\n", (double) nw_correct / total_tests * 100);
         printf("=> LEAP             | %.3f %%\n", (double) LEAP_correct / total_tests * 100);
         printf("=> Greedy           | %.3f %%\n", (double) greedy_correct / total_tests * 100);
+        printf("[Coverage] (percentage of alignments covering all long consecutive matches)\n");
+        printf("=> Greedy           | %.3f %%\n", (double) greedy_coverage / total_tests * 100);
     }
 
     ~benchmark() {

@@ -252,7 +252,9 @@ private:
         nw_correct += (nw_results->penalty == correct_answer);
         LEAP_correct += (LEAP_results->penalty == correct_answer);
         greedy_correct += (greedy_results->penalty == correct_answer);
-        greedy_coverage += (int) (_check_coverage(s1, s2, greedy_results->CIGAR, nw_results->CIGAR, 1, 3));
+        if (_check_coverage(s1, s2, greedy_results->CIGAR, nw_results->CIGAR, 1, 3)) {
+            greedy_coverage += 1;
+        }
     }
 
 
@@ -304,6 +306,7 @@ public:
         // initialize correctness record
         total_tests = 0;
         nw_correct = LEAP_correct = greedy_correct = 0;
+        greedy_coverage = 0;
 
         // Initialize results
         nw_results = new align_result_t;
@@ -340,6 +343,7 @@ public:
             ref[i].assign(ref_temp);
         }
         max_tests = i;
+        printf("Processed data file: %s\n", string_dir);
     }
 
     /**
@@ -368,7 +372,7 @@ public:
             auto s1Len = (int) read[i].length();
             auto s2Len = (int) ref[i].length();
             _run_benchmark(s1, s1Len, s2, s2Len, answers[i]);
-            if (i % 10000 == 0 && i != 0) {
+            if (i % 100000 == 0 && i != 0) {
                 printf("...processed %d reads.\n", i);
             }
         }

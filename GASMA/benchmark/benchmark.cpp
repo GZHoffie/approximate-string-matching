@@ -3,12 +3,23 @@
 //
 
 #include "benchmark_utils.h"
+#include "benchmark_dataset.h"
+
+#include <vector>
 
 int main () {
-    auto bench = new benchmark(4, 6, 2, 3, 100000, true);
-    bench->read_string_file("../../pymatch/test/resource/sample.random.dataset.seq");
-    //bench->read_answer_file("../../pymatch/test/resource/nw2.txt");
-    bench->run();
-    bench->print();
-    delete bench;
+    int num_reads = 5000000;
+    int length = 100;
+    std::vector<float> error_rates = {0.01, 0.05, 0.1, 0.2};
+
+    for (auto error_rate : error_rates) {
+        Dataset dataset(num_reads, length, error_rate);
+        std::string output_dir = dataset.output();
+
+        benchmark bench(1, 1, 1, 10, 1000000, true);
+        bench.read_string_file(output_dir.c_str());
+        bench.run();
+        bench.print();
+    }
+
 }

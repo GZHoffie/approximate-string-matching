@@ -36,6 +36,22 @@
  * DESCRIPTION: Sequence Generator for benchmarking pairwise algorithms
  */
 
+#include <cstdio>
+#include <cstdlib>
+#include <getopt.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <cmath>
+#include <ctime>
+
+#ifndef ALPHABET_SIZE
+#define ALPHABET_SIZE 4
+#endif
+char alphabet[] = {
+        'A','C','G','T'
+};
+
 
 /**
  * Utility class to generate simulated dataset of read and ref strings
@@ -44,7 +60,181 @@
  */
 class Dataset {
 private:
-    char alphabet[4];
+    // number of reads to be output in the dataset
+    int num_reads;
+
+    // length of the read string
+    int length;
+
+    // error rate
+    float error_rate;
+
+    // whether the generated number of error is exactly equal to error_rate * length or <= that number.
+    bool exact_error_rate;
+
+    // whether we overwrite file if file already exist
+    bool overwrite;
+
+    /**
+     * Generate random number between min and max
+     * @return a uint64 object that is randomly generated between min and max
+     */
+    uint64_t rand_iid(const uint64_t min,const uint64_t max) {
+        int n_rand = rand(); // [0, RAND_MAX]
+        const uint64_t range = max - min;
+        const uint64_t rem = RAND_MAX % range;
+        const uint64_t sample = RAND_MAX / range;
+        // Consider the small interval within remainder of RAND_MAX
+        if (n_rand < RAND_MAX - rem) {
+            return min + n_rand/sample;
+        } else {
+            return rand_iid(min,max);
+        }
+    }
+/*
+ * Generate pattern
+ */
+    void generate_pattern(
+            char* const pattern,
+            const uint64_t length) {
+        // Generate random characters
+        uint64_t i;
+        for (i=0;i<length;++i) {
+            pattern[i] = alphabet[rand_iid(0,ALPHABET_SIZE)];
+        }
+        pattern[length] = '\0';
+    }
+/*
+ * Generate candidate-text from pattern adding random errors
+ */
+    void generate_candidate_text_add_mismatch(
+            char* const candidate_text,
+            const uint64_t candidate_length) {
+        // Generate random mismatch
+        int position = rand_iid(0,candidate_length);
+        char character = alphabet[rand_iid(0,ALPHABET_SIZE)];
+        candidate_text[position] = character;
+    }
+    void generate_candidate_text_add_deletion(
+            char* const candidate_text,
+            uint64_t* const candidate_length) {
+        // Generate random deletion
+        int position = rand_iid(0,*candidate_length);
+        int i;
+        const uint64_t new_candidate_length = *candidate_length - 1;
+        for (i=position;i<new_candidate_length;++i) {
+            candidate_text[i] = candidate_text[i+1];
+        }
+        *candidate_length = new_candidate_length;
+    }
+    void generate_candidate_text_add_insertion(
+            char* const candidate_text,
+            uint64_t* const candidate_length) {
+        // Generate random insertion
+        int position = rand_iid(0,*candidate_length);
+        int i;
+        const uint64_t new_candidate_length = *candidate_length + 1;
+        for (i=new_candidate_length-1;i>position;--i) {
+            candidate_text[i] = candidate_text[i-1];
+        }
+        *candidate_length = new_candidate_length;
+        // Insert random character
+        candidate_text[position] = alphabet[rand_iid(0,ALPHABET_SIZE)];
+    }
+    char* generate_candidate_text(
+            char* const pattern,
+            const uint64_t pattern_length,
+            const float error_degree) {
+        // Compute nominal number of errors
+        uint64_t num_errors;
+        if (exact_error_rate)
+            num_errors = ceil(pattern_length * error_degree);
+        else
+            num_errors = rand_iid(0, ceil(pattern_length * error_degree));
+        // Allocate & init-by-copy candidate text
+        char* const candidate_text = new char[pattern_length + num_errors];
+        uint64_t candidate_length = pattern_length;
+        memcpy(candidate_text,pattern,pattern_length);
+        // Generate random errors
+        int i;
+        for (i=0;i<num_errors;++i) {
+            int error_type = rand_iid(0,3);
+            switch (error_type) {
+                case 0:
+                    generate_candidate_text_add_mismatch(candidate_text,candidate_length);
+                    break;
+                case 1:
+                    generate_candidate_text_add_deletion(candidate_text,&candidate_length);
+                    break;
+                default:
+                    generate_candidate_text_add_insertion(candidate_text,&candidate_length);
+                    break;
+            }
+        }
+        // Return candidate-text
+        candidate_text[candidate_length] = '\0';
+        return candidate_text;
+    }
+
+public:
+    Dataset(int _num_reads, int _length, float _error_rate, bool _exact_error_rate = false, bool _overwrite = false) {
+        num_reads = _num_reads;
+        length = _length;
+        error_rate = _error_rate;
+        if (error_rate < 0 || error_rate > 0.7) {
+            fprintf(stderr, "The error rate %f is either too small or too large. It should be between 0 and 0.7",
+                    error_rate);
+            exit(1);
+        }
+        exact_error_rate = _exact_error_rate;
+        overwrite = _overwrite;
+    }
+
+    void output(const char * output_dir) {
+        FILE *output_file;
+        // Open files
+        if (!overwrite) {
+            if (FILE *file = fopen(output_dir, "r")) {
+                fclose(file);
+                return;
+            }
+
+        }
+        output_file = fopen(output_dir,"w");
+        // Allocate
+        char* const pattern = new char[length + 1];
+        // Read-align loop
+        srand(time(0));
+        int i;
+        for (i = 0; i < num_reads; ++i) {
+            // Prepare pattern
+            generate_pattern(pattern, length);
+            // Print pattern
+            fprintf(output_file, ">%s\n", pattern);
+            // Generate candidate-text
+            char* const candidate_text = generate_candidate_text(
+                    pattern, length, error_rate);
+            // Print candidate-text
+            fprintf(output_file, "<%s\n", candidate_text);
+            delete[] candidate_text;
+        }
+        // Close files & free
+        fclose(output_file);
+        delete[] pattern;
+    }
+
+    std::string output() {
+        std::string output_file_name;
+        output_file_name += "simulated_" + std::to_string(num_reads) + "_" + std::to_string(length) + "_" +
+                            std::to_string(error_rate) + "_";
+        if (exact_error_rate) {
+            output_file_name += "eq.seq";
+        } else {
+            output_file_name += "lt_eq.seq";
+        }
+        output(output_file_name.c_str());
+        return output_file_name;
+    }
 };
 
 #endif //GASMA_BENCHMARK_DATASET_H

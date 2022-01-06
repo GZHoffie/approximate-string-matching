@@ -11,7 +11,7 @@
 #define ANSWER_DIR "../../pymatch/test/resource/nw2.txt"
 #define TEST_NUM 100000
 #define LOWER_ERROR_LIMIT 0
-#define UPPER_ERROR_LIMIT 30
+#define UPPER_ERROR_LIMIT 20
 
 int main() {
     std::ifstream string_file, answer_file;
@@ -65,7 +65,7 @@ int main() {
         int s1Len = (int) read[i].length();
         int s2Len = (int) ref[i].length();
         times(&start_time);
-        matrix->reset(s1, s1Len, s2, s2Len, 9);
+        matrix->reset(s1, s1Len, s2, s2Len, 2);
         matrix->run();
         times(&end_time);
         printf("%d %d\n", matrix->get_cost(), optimal_res[i]);

@@ -10,6 +10,7 @@
 #include "utils.h"
 #include <cstdlib>
 #include <limits>
+#include <math.h>
 
 class hurdle_matrix {
 private:
@@ -180,6 +181,9 @@ protected:
     // boolean value indicating whether it is the first step
     bool is_first_step;
 
+    // significance calculation
+    double match_sig, mismatch_sig, indel_sig;
+
 #ifdef DISPLAY
     /**
      * Update the matching strings given the lanes we are leaping to and the distance we
@@ -268,8 +272,8 @@ protected:
      * @return a boolean value indicating whether there is still a valid highway.
      */
     bool _update_highway_list() {
-        float largest_total_heuristic = - std::numeric_limits<float>::infinity();
-        float largest_leap_heuristic = - std::numeric_limits<float>::infinity();
+        double largest_total_heuristic = - std::numeric_limits<double>::infinity();
+        int largest_leap_heuristic = - std::numeric_limits<int>::infinity();
         int best_highway_lane = 0;
         int first_zero;
         bool reaching_destination = false; // check if we are reaching destination
@@ -305,14 +309,15 @@ protected:
             (*highway_list)[lane].hurdle_cost = hurdle_cost;
 
         }
-        float heuristic = 0, leap_heuristic = 0;
+        double heuristic;
+        int leap_heuristic;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             // get the best-looking highway
             int current_cost = - (*highway_list)[lane].switch_cost - (*highway_list)[lane].hurdle_cost;
-            int total_cost_upper_bound = 2 * o * (*highway_list)[lane].length +
-                                         (2 * o - x) * (*highway_list)[lane].num_hurdles +
-                                         (o - e) * std::max(0, (*highway_list)[lane].num_switches - 1);
-            heuristic = current_cost * 7 + total_cost_upper_bound;
+            double significance = match_sig * (*highway_list)[lane].length +
+                                  mismatch_sig * (*highway_list)[lane].num_hurdles +
+                                  indel_sig * (*highway_list)[lane].num_switches;
+            heuristic = significance;
             leap_heuristic = - (*highway_list)[lane].switch_cost;
 
             if (reaching_destination) {
@@ -461,7 +466,10 @@ public:
             alignment_type_t _alignment_type = GLOBAL,
             int _x = 1,
             int _o = 1,
-            int _e = 1
+            int _e = 1,
+            double match_prob = 0.95,
+            double mismatch_prob = 0.02,
+            double indel_prob = 0.03
             ) {
         m = std::min(MAX_LENGTH, static_cast<int>(strlen(read)));
         n = std::min(MAX_LENGTH, static_cast<int>(strlen(ref)));
@@ -502,6 +510,11 @@ public:
 #endif
         // initialize CIGAR string
         CIGAR = "";
+
+        // calculate significance for match/mismatch/indel
+        match_sig = log(match_prob / 0.25);
+        mismatch_sig = log(mismatch_prob / 0.25);
+        indel_sig = log(indel_prob / 2 / 0.25);
     }
 
 
@@ -519,8 +532,12 @@ public:
             alignment_type_t _alignment_type = GLOBAL,
             int _x = 1,
             int _o = 1,
-            int _e = 1
-                    ) : hurdle_matrix("", "", 1, _alignment_type, _x, _o, _e)
+            int _e = 1,
+            double match_prob = 0.88,
+            double mismatch_prob = 0.04,
+            double indel_prob = 0.08
+                    ) : hurdle_matrix("", "", 1, _alignment_type, _x, _o, _e,
+                                      match_prob, mismatch_prob, indel_prob)
                     {}
 
 

@@ -11,7 +11,7 @@
 #define ANSWER_DIR "../../pymatch/test/resource/nw2.txt"
 #define TEST_NUM 100000
 #define LOWER_ERROR_LIMIT 0
-#define UPPER_ERROR_LIMIT 20
+#define UPPER_ERROR_LIMIT 10
 
 int main() {
     std::ifstream string_file, answer_file;

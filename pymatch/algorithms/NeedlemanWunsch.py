@@ -73,8 +73,8 @@ class NeedlemanWunsch(ApproximateStringMatching):
 
 
 if __name__ == "__main__":
-    prob = NeedlemanWunsch( "TGTGAGAGAAGACCTGAACGCATCTACTATCTGCGTTGCTGAAACTGGATAGAATAACTCCCCAGATGTACCAGGGGAAGACAACAAGGAATGCTAGGTC",
-            "TGTGCAGAGAAGACCTTGAACGTCACTCGCTTATTGCTTCTATGGATAGAATAACTCCCCAGATGAACCCAGGTGTAGACAAAAGAAATGCTAGGTC")
+    prob = NeedlemanWunsch("ACTAGAACTT", "ACTAGTCCACT"
+            )
     print(prob.editDistance())
     print(prob.D)
     print(prob)

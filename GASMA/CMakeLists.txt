@@ -28,6 +28,7 @@ ADD_SUBDIRECTORY(benchmark/LEAP_SIMD)
 
 # Executable for running hurdle-matrix
 ADD_EXECUTABLE(hurdle-matrix test/test_hurdle_matrix.cpp ${SHARED_FILES} hurdle_matrix.h)
+SET_TARGET_PROPERTIES(hurdle-matrix PROPERTIES COMPILE_FLAGS "-DDISPLAY")
 
 # Executable for Benchmarking
 ADD_EXECUTABLE(hurdle-matrix-benchmark benchmark/benchmark.cpp ${SHARED_FILES} hurdle_matrix.h benchmark/benchmark_coverage.h benchmark/benchmark_dataset.h)

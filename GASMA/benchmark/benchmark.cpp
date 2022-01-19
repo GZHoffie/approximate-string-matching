@@ -10,10 +10,10 @@
 int main () {
     int num_reads = 5000000;
     int length = 100;
-    std::vector<float> error_rates = {0.01, 0.05, 0.1, 0.2};
+    std::vector<float> error_rates = {0.05, 0.1, 0.15, 0.2};
 
     for (auto error_rate : error_rates) {
-        Dataset dataset(num_reads, length, error_rate);
+        Dataset dataset(num_reads, length, error_rate, true);
         std::string output_dir = dataset.output();
 
         benchmark bench(1, 1, 1, 10, 1000000, true);

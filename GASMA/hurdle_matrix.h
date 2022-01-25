@@ -5,7 +5,7 @@
 #ifndef GASMA_HURDLE_MATRIX_H
 #define GASMA_HURDLE_MATRIX_H
 
-#define MAX_K 30  // The maximum probable value for k
+#define MAX_K 50  // The maximum probable value for k
 
 #include "utils.h"
 #include <cstdlib>
@@ -229,14 +229,23 @@ protected:
     void _update_CIGAR(int best_lane, int curr_lane, int mismatches, int matches) {
         // update matched strings
         if (best_lane < curr_lane) {
-            CIGAR = CIGAR + std::to_string(curr_lane - best_lane) + "I";
+            CIGAR += std::to_string(curr_lane - best_lane);
+            CIGAR += 'I';
         } else if (best_lane > curr_lane) {
-            CIGAR = CIGAR + std::to_string(best_lane - curr_lane) + "D";
+            CIGAR += std::to_string(best_lane - curr_lane);
+            CIGAR += 'D';
         }
-        if (mismatches > 0)
-            CIGAR = CIGAR + std::to_string(mismatches) + "X";
-        if (matches > 0)
-            CIGAR = CIGAR + std::to_string(matches) + "=";
+        if (mismatches > 0) {
+            CIGAR += std::to_string(mismatches);
+            CIGAR += 'X';
+        }
+
+        if (matches > 0) {
+            CIGAR += std::to_string(matches);
+            CIGAR += '=';
+        }
+
+
     }
 
 
@@ -509,7 +518,7 @@ public:
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
         // initialize CIGAR string
-        CIGAR = "";
+        CIGAR.reserve(MAX_LENGTH * sizeof(char));
 
         // calculate significance for match/mismatch/indel
         match_sig = log(match_prob / 0.25);
@@ -533,9 +542,9 @@ public:
             int _x = 1,
             int _o = 1,
             int _e = 1,
-            double match_prob = 0.88,
-            double mismatch_prob = 0.04,
-            double indel_prob = 0.08
+            double match_prob = 0.80,
+            double mismatch_prob = 0.20 / 3,
+            double indel_prob = 0.40 / 3
                     ) : hurdle_matrix("", "", 1, _alignment_type, _x, _o, _e,
                                       match_prob, mismatch_prob, indel_prob)
                     {}
@@ -634,7 +643,7 @@ public:
         A_index = 0, B_index = 0, A_match_index = 0, B_match_index = 0;
 #endif
         // initialize CIGAR string
-        CIGAR = "";
+        CIGAR.clear();
     }
 
     void reset(const char* read, const char* ref, int error) {

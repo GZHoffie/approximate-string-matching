@@ -15,17 +15,21 @@ class NeedlemanWunsch(ApproximateStringMatching):
 
     def editDistance(self):
         for j in range(1, self.n + 1):
-            self.D[0][j] = j
+            self.D[0][j] = 0
         for i in range(1, self.m + 1):
-            self.D[i][0] = i
+            self.D[i][0] = 0
         for i in range(1, self.m + 1):
             for j in range(1, self.n + 1):
-                delete = self.D[i-1][j] + self.deleteCost({})
-                insert = self.D[i][j-1] + self.insertCost({})
-                match = self.D[i-1][j-1] + self.mismatchCost({"i": i, "j": j})
-                self.D[i][j] = min(insert, delete, match)
+                delete = self.D[i-1][j] - 1
+                insert = self.D[i][j-1] - 1
+                match = self.D[i-1][j-1]# + self.mismatchCost({"i": i, "j": j})
+                if self.mismatchCost({"i": i, "j": j}) == 1:
+                    match -= 1
+                else:
+                    match += 2
+                self.D[i][j] = max(insert, delete, match)
         
-        return self.D[self.m][self.n]
+        return np.max(self.D)
     
     def SGEditDistance(self):
         """
@@ -73,12 +77,12 @@ class NeedlemanWunsch(ApproximateStringMatching):
 
 
 if __name__ == "__main__":
-    prob = NeedlemanWunsch("ACTAGAACTT", "ACTAGTCCACT"
+    prob = NeedlemanWunsch("ACTCGATC", "GTTCGCCT"
             )
     print(prob.editDistance())
     print(prob.D)
-    print(prob)
-    print(prob.num_matches, prob.num_consecutive_matches)
-    print(prob.num_matches / prob.num_consecutive_matches)
+    #print(prob)
+    #print(prob.num_matches, prob.num_consecutive_matches)
+    #print(prob.num_matches / prob.num_consecutive_matches)
 
 

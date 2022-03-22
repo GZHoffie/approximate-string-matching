@@ -201,3 +201,25 @@ Total number of alignments: 1000000
 => Greedy           | 0.000 %
 
 Process finished with exit code 0
+
+background
+
+1. Dura x Picifara = Tenera (F1) 油树
+exploit genetic linkage contig
+
+every 2T: 1D, 1P
+1,600 sequenxcing data
+
+TS1 x TS1 TS3 x TS3 (F2)
+mapping 
+
+2. Phenotapic -> Yield
+
+3h / 4h to assemble genome (trio sequencing) faster/quality
+
+
+computational problem
+Assembly
+
+F1 generation
+heter

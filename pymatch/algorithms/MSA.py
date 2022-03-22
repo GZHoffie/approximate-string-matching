@@ -40,7 +40,7 @@ class ProfileProfileAlignment:
         print(self.score_matrix)
 
         self.D = np.zeros((len(self.a1[0]) + 1, len(self.a2[0]) + 1))
-        print(self._psp(1, None))
+        self.B = np.zeros(self.D.shape, dtype=str)
         self._dp()
 
     def _create_PSSM(self, alignment):
@@ -73,7 +73,7 @@ class ProfileProfileAlignment:
         for i in range(self.D.shape[0] - 1):
             self.D[i + 1, 0] = self.D[i, 0] + self._psp(i, None)
         for j in range(self.D.shape[0] - 1):
-            self.D[0, j + 1] = self.D[0, j] + self._psp(j, None)
+            self.D[0, j + 1] = self.D[0, j] + self._psp(None, j)
         
         # Dynamic programming step
         for i in range(self.D.shape[0] - 1):
@@ -83,13 +83,18 @@ class ProfileProfileAlignment:
                 insert = self.D[i, j+1] + self._psp(i, None)
                 delete = self.D[i+1, j] + self._psp(None, j)
                 self.D[i+1, j+1] = max(match, insert, delete)
+
+                if self.D[i+1, j+1] == match:
+                    self.B[i+1, j+1] = "\ "
+                elif self.D[i+1, j+1] == insert:
+                    self.B[i+1, j+1] = "|"
+                else:
+                    self.B[i+1, j+1] = "-"
+
+
         
         print(self.D)
-
-
-
-
-  
+        print(self.B)
 
 
 

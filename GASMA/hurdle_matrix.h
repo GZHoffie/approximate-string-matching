@@ -448,7 +448,7 @@ protected:
                 mask_bit1 = (B_bit1_mask->shift_left(lane))._xor(*A_bit1_mask);
             }
             auto mask = mask_bit0._or(mask_bit1);
-            (*this)[lane] = mask;
+            (*this)[lane] = mask.flip_short_hurdles(1);
         }
     }
 
@@ -544,7 +544,7 @@ public:
      * @param _o gap opening penalty. Default: 0.
      * @param _e gap extension penalty. Default: 1.
      */
-    hurdle_matrix(
+    explicit hurdle_matrix(
             alignment_type_t _alignment_type = GLOBAL,
             int _x = 1,
             int _o = 1,

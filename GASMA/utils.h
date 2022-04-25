@@ -192,14 +192,27 @@ public:
 
     /**
      * Flip the short 1 bit in this->val if both of its neighbors are zeros
-     *
+     * @param threshold the number of neighboring 0 in order to flip the hurdle. Only support 1 and 2.
+     * if threshold=1, then we flip a 1 if both its neighbors are 0, i.e. `010` -> `000`.
+     * if threshold=2, we flip `00100` -> `00000`.
      * @return this->val with short 1 bits flipped.
      */
-    int_128bit flip_short_hurdles() {
-        int_128bit l1 = this->shift_left_one();
-        int_128bit r1 = this->shift_right_one();
-        int_128bit mask = l1._or(r1);
-        return this->_and(mask);
+    int_128bit flip_short_hurdles(int threshold) {
+        int_128bit l1 = this->shift_left(1);
+        int_128bit r1 = this->shift_right(1);
+        int_128bit l2, r2;
+        if (threshold > 1) {
+            l2 = this->shift_left(2);
+            r2 = this->shift_right(2);
+        }
+
+        int_128bit mask_1 = l1._or(r1);
+        if (threshold > 1) {
+            int_128bit mask_2 = l2._or(r2)._or(mask_1);
+            return this->_and(mask_2);
+        } else {
+            return this->_and(mask_1);
+        }
     }
 
     /**

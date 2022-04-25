@@ -97,7 +97,7 @@ private:
             }
         }
 
-        void reset(int error, int m, int n, int lower_bound_, int upper_bound_) {
+        void reset(int error, int m_, int n_, int lower_bound_, int upper_bound_) {
             k = error;
             lower_bound = lower_bound_;
             upper_bound = upper_bound_;
@@ -108,7 +108,7 @@ private:
                 info[lane + MAX_K].hurdle_cost = MAX_LENGTH;
                 info[lane + MAX_K].num_switches = MAX_LENGTH;
                 info[lane + MAX_K].num_hurdles = MAX_LENGTH;
-                info[lane + MAX_K].destination = _calculate_destination(m, n, lane);
+                info[lane + MAX_K].destination = _calculate_destination(m_, n_, lane);
             }
         }
 
@@ -493,6 +493,8 @@ public:
         strncpy(A, read, m);
         strncpy(B, ref, n);
         k = error;
+
+#ifdef CORRECTION
         if (m <= n) {
             lower_bound = -k;
             upper_bound = n - m + k;
@@ -500,6 +502,11 @@ public:
             lower_bound = n - m - k;
             upper_bound = k;
         }
+#else
+        lower_bound = -k;
+        upper_bound = k;
+#endif
+
         _convert_read();
         highway_list = new highways(MAX_K, m, n, lower_bound, upper_bound);
         lanes = new int_128bit[2 * MAX_K + 1];
@@ -619,6 +626,8 @@ public:
         strncpy(A, read, m);
         strncpy(B, ref, n);
         k = error;
+
+#ifdef CORRECTION
         if (m <= n) {
             lower_bound = -k;
             upper_bound = n - m + k;
@@ -626,6 +635,11 @@ public:
             lower_bound = n - m - k;
             upper_bound = k;
         }
+#else
+        lower_bound = -k;
+        upper_bound = k;
+#endif
+
         _convert_read();
         highway_list->reset(k, m, n, lower_bound, upper_bound);
         destination_lane = n - m;

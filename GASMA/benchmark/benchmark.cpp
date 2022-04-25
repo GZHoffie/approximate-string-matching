@@ -8,6 +8,7 @@
 #include <vector>
 
 int main () {
+    /*
     int num_reads = 5000000;
     int length = 100;
     std::vector<float> error_rates = {0.05, 0.10, 0.15, 0.20};
@@ -21,5 +22,10 @@ int main () {
         bench.run();
         bench.print();
     }
+     */
 
+    benchmark bench(1, 1, 1, 2, 1000000, true);
+    bench.read_string_file("/home/zhenhao/dna-align-dataset/SRR611076.data");
+    bench.run();
+    bench.print();
 }

@@ -326,24 +326,28 @@ public:
             bool skip_first_char = true) {
         std::ifstream string_file;
         string_file.open(string_dir);
-        std::string read_temp, ref_temp;
-        int i;
-        for (i = 0; i < max_tests; i++) {
-            if (skip_first_char) {
-                string_file.ignore();
+        if (string_file.is_open()) {
+            std::string read_temp, ref_temp;
+            int i;
+            for (i = 0; i < max_tests; i++) {
+                if (skip_first_char) {
+                    string_file.ignore();
+                }
+                if (!getline(string_file, read_temp)) {
+                    break;
+                }
+                if (skip_first_char) {
+                    string_file.ignore();
+                }
+                getline(string_file, ref_temp);
+                read[i].assign(read_temp);
+                ref[i].assign(ref_temp);
             }
-            if (!getline(string_file, read_temp)) {
-                break;
-            }
-            if (skip_first_char) {
-                string_file.ignore();
-            }
-            getline(string_file, ref_temp);
-            read[i].assign(read_temp);
-            ref[i].assign(ref_temp);
+            max_tests = i;
+            printf("Processed data file: %s\n", string_dir);
+        } else {
+            printf("Unable to open data file: %s\n", string_dir);
         }
-        max_tests = i;
-        printf("Processed data file: %s\n", string_dir);
     }
 
     /**

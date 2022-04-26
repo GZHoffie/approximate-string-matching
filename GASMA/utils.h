@@ -252,6 +252,18 @@ public:
         return (int) (__popcntq(_mm_cvtsi128_si64(this->val)) + __popcntq(_mm_cvtsi128_si64(n_hi)));
 #endif
     }
+
+    /**
+     * Count the number of ones from the `from`-th bit to the `to`-th bit.
+     * In particular we count between [`from`, `to`).
+     * @param from the lowest index of bit (inclusive) to start counting
+     * @param to the highest index of bit (exclusive) to stop counting
+     * @return number of ones between the set interval.
+     */
+    int pop_count_between(int from = 0, int to = 128) {
+        int_128bit shifted = this->shift_left(from).shift_right(128 - to);
+        return shifted.pop_count();
+    }
 };
 
 
@@ -400,6 +412,8 @@ public:
         auto data = this->_not();
         return data.first_one();
     }
+
+
 
     /**
      * Flip the short 1 bit in this->val if both of its neighbors are zeros

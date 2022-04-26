@@ -150,6 +150,9 @@ protected:
     // rows in the hurdle matrix
     int_128bit* lanes;
 
+    // original rows (without flipping hurdles)
+    int_128bit* lanes_orig;
+
     // information about destination
     int destination_lane;
 
@@ -235,17 +238,10 @@ protected:
             CIGAR += std::to_string(best_lane - curr_lane);
             CIGAR += 'D';
         }
-        if (mismatches > 0) {
-            CIGAR += std::to_string(mismatches);
-            CIGAR += 'X';
+        if (mismatches + matches > 0) {
+            CIGAR += std::to_string(mismatches + matches);
+            CIGAR += 'M';
         }
-
-        if (matches > 0) {
-            CIGAR += std::to_string(matches);
-            CIGAR += '=';
-        }
-
-
     }
 
 
@@ -312,7 +308,7 @@ protected:
             if (alignment_type == GLOBAL || !is_first_step) {
                 switch_cost = switch_lane_penalty(current_lane, lane, o, e);
             }
-            (*highway_list)[lane].num_hurdles = (*highway_list)[lane].starting_point - start_col;
+            (*highway_list)[lane].num_hurdles = lanes_orig[lane + MAX_K].pop_count_between(start_col,(*highway_list)[lane].starting_point + (*highway_list)[lane].length);
             int hurdle_cost = x * (*highway_list)[lane].num_hurdles;
             (*highway_list)[lane].switch_cost = switch_cost;
             (*highway_list)[lane].hurdle_cost = hurdle_cost;
@@ -383,10 +379,9 @@ protected:
                     continue;
                 }
                 ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
-                intermediate_cost = (*highway_list)[lane].switch_cost + (*highway_list)[lane].hurdle_cost;
+                intermediate_cost = (*highway_list)[lane].switch_cost + lanes_orig[lane + MAX_K].pop_count_between((*highway_list)[lane].starting_point, ending_point);
                 total_cost = intermediate_cost + switch_lane_penalty(lane, best_lane, o, e)
-                             + std::max(0, x * (starting_point - switch_forward_column(lane, best_lane) -
-                                           ending_point));
+                             + std::max(0, x * lanes_orig[best_lane + MAX_K].pop_count_between(switch_forward_column(lane, best_lane) + ending_point, starting_point));
                 if (total_cost <= smallest_total_cost) {
                     if (intermediate_cost <= smallest_intermediate_cost) {
                         smallest_total_cost = total_cost;
@@ -448,7 +443,8 @@ protected:
                 mask_bit1 = (B_bit1_mask->shift_left(lane))._xor(*A_bit1_mask);
             }
             auto mask = mask_bit0._or(mask_bit1);
-            (*this)[lane] = mask.flip_short_hurdles(1);
+            lanes_orig[lane + MAX_K] = mask;
+            lanes[lane + MAX_K] = mask.flip_short_hurdles(1);
         }
     }
 
@@ -510,6 +506,7 @@ public:
         _convert_read();
         highway_list = new highways(MAX_K, m, n, lower_bound, upper_bound);
         lanes = new int_128bit[2 * MAX_K + 1];
+        lanes_orig = new int_128bit[2 * MAX_K + 1];
         destination_lane = n - m;
         is_first_step = true;
         _construct_hurdles();
@@ -573,8 +570,7 @@ public:
             if (alignment_type == GLOBAL) {
                 switch_cost = switch_lane_penalty(current_lane, destination_lane, o, e);
             }
-            int distance = destination_column - current_column -
-                           switch_forward_column(current_lane, destination_lane);
+            int distance = lanes_orig[destination_lane + MAX_K].pop_count_between(current_column + switch_forward_column(current_lane, destination_lane));
             int hurdle_cost = std::max(0, x * distance);
             cost += switch_cost + hurdle_cost;
 #ifdef DISPLAY

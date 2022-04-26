@@ -250,8 +250,8 @@ private:
             correct_answer = nw_results->penalty;
         }
         nw_correct += (nw_results->penalty == correct_answer);
-        LEAP_correct += (LEAP_results->penalty <= correct_answer);
-        greedy_correct += (greedy_results->penalty <= correct_answer);
+        LEAP_correct += (LEAP_results->penalty == correct_answer);
+        greedy_correct += (greedy_results->penalty == correct_answer);
         if (_check_coverage(s1, s2, greedy_results->CIGAR, nw_results->CIGAR, 1, 3)) {
             greedy_coverage += 1;
         }

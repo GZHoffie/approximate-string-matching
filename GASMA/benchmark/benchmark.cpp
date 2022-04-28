@@ -24,7 +24,7 @@ int main () {
     }
      */
 
-    benchmark bench(1, 1, 1, 2, 1000000, true);
+    benchmark bench(1, 1, 1, 3, 1000000, true);
     bench.read_string_file("/home/zhenhao/dna-align-dataset/SRR611076.data");
     bench.run();
     bench.print();

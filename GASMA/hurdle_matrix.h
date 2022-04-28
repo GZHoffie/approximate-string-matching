@@ -379,7 +379,7 @@ protected:
                     continue;
                 }
                 ending_point = (*highway_list)[lane].starting_point + (*highway_list)[lane].length;
-                intermediate_cost = (*highway_list)[lane].switch_cost + lanes_orig[lane + MAX_K].pop_count_between((*highway_list)[lane].starting_point, ending_point);
+                intermediate_cost = (*highway_list)[lane].switch_cost + lanes_orig[lane + MAX_K].pop_count_between(current_column + switch_forward_column(current_lane, lane), ending_point);
                 total_cost = intermediate_cost + switch_lane_penalty(lane, best_lane, o, e)
                              + std::max(0, x * lanes_orig[best_lane + MAX_K].pop_count_between(switch_forward_column(lane, best_lane) + ending_point, starting_point));
                 if (total_cost <= smallest_total_cost) {
@@ -444,7 +444,7 @@ protected:
             }
             auto mask = mask_bit0._or(mask_bit1);
             lanes_orig[lane + MAX_K] = mask;
-            lanes[lane + MAX_K] = mask.flip_short_hurdles(1);
+            lanes[lane + MAX_K] = mask.flip_short_hurdles(2).flip_short_matches(1);
         }
     }
 
@@ -570,7 +570,7 @@ public:
             if (alignment_type == GLOBAL) {
                 switch_cost = switch_lane_penalty(current_lane, destination_lane, o, e);
             }
-            int distance = lanes_orig[destination_lane + MAX_K].pop_count_between(current_column + switch_forward_column(current_lane, destination_lane));
+            int distance = lanes_orig[destination_lane + MAX_K].pop_count_between(current_column + switch_forward_column(current_lane, destination_lane), destination_column);
             int hurdle_cost = std::max(0, x * distance);
             cost += switch_cost + hurdle_cost;
 #ifdef DISPLAY

@@ -261,7 +261,11 @@ public:
      * @return number of ones between the set interval.
      */
     int pop_count_between(int from = 0, int to = 128) {
-        int_128bit shifted = this->shift_left(from).shift_right(128 - to);
+        //this->print();
+        //printf("from=%d, to=%d\n", from, to);
+        int_128bit shifted = this->shift_left(from).shift_right(from + 128 - to);
+        //shifted.print();
+        //printf("%d\n", shifted.pop_count());
         return shifted.pop_count();
     }
 };

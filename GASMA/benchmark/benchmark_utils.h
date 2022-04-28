@@ -193,6 +193,7 @@ private:
         matrix->run();
         greedy_results->penalty = matrix->get_cost();
         greedy_results->CIGAR = matrix->get_CIGAR();
+        //printf("%d, %s\n", greedy_results->penalty, greedy_results->CIGAR.c_str());
         times(&end_time);
 
         greedy_time.tms_stime += end_time.tms_stime - start_time.tms_stime;

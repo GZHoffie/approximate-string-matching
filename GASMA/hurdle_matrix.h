@@ -444,7 +444,7 @@ protected:
             }
             auto mask = mask_bit0._or(mask_bit1);
             lanes_orig[lane + MAX_K] = mask;
-            lanes[lane + MAX_K] = mask.flip_short_hurdles(2).flip_short_matches(1);
+            lanes[lane + MAX_K] = mask.flip_short_hurdles(1);//.flip_short_matches(1);
         }
     }
 

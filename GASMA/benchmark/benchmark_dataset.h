@@ -75,6 +75,9 @@ private:
     // whether we overwrite file if file already exist
     bool overwrite;
 
+    // probability of mismatches
+    float mismatch_rate;
+
     /**
      * Generate random number between min and max
      * @return a uint64 object that is randomly generated between min and max
@@ -158,7 +161,13 @@ private:
         // Generate random errors
         int i;
         for (i=0;i<num_errors;++i) {
-            int error_type = rand_iid(0,3);
+            float random = ((float) std::rand()) / RAND_MAX;
+            int error_type;
+            if (random <= mismatch_rate) {
+                error_type = 0;
+            } else {
+                error_type = rand_iid(1,3);
+            }
             switch (error_type) {
                 case 0:
                     generate_candidate_text_add_mismatch(candidate_text,candidate_length);
@@ -177,13 +186,20 @@ private:
     }
 
 public:
-    Dataset(int _num_reads, int _length, float _error_rate, bool _exact_error_rate = false, bool _overwrite = false) {
+    Dataset(int _num_reads, int _length, float _error_rate, float _mismatch_rate, bool _exact_error_rate = false, bool _overwrite = false) {
+        std::srand(static_cast<unsigned int>(std::time(nullptr)));
         num_reads = _num_reads;
         length = _length;
         error_rate = _error_rate;
         if (error_rate < 0 || error_rate > 0.7) {
             fprintf(stderr, "The error rate %f is either too small or too large. It should be between 0 and 0.7",
                     error_rate);
+            exit(1);
+        }
+        mismatch_rate = _mismatch_rate;
+        if (mismatch_rate < 0 || mismatch_rate > 1) {
+            fprintf(stderr, "The mismatch rate %f is either too small or too large. It should be between 0 and 1",
+                    mismatch_rate);
             exit(1);
         }
         exact_error_rate = _exact_error_rate;

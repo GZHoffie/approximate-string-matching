@@ -32,6 +32,7 @@ SET_TARGET_PROPERTIES(hurdle-matrix PROPERTIES COMPILE_FLAGS "-DDISPLAY")
 
 # Executable for Benchmarking
 ADD_EXECUTABLE(hurdle-matrix-benchmark benchmark/benchmark.cpp ${SHARED_FILES} hurdle_matrix.h benchmark/benchmark_coverage.h benchmark/benchmark_dataset.h)
+#SET_TARGET_PROPERTIES(hurdle-matrix-benchmark PROPERTIES COMPILE_FLAGS "-DDEBUG -DDISPLAY")
 TARGET_LINK_DIRECTORIES(hurdle-matrix-benchmark PUBLIC
         benchmark/parasail/build
         benchmark/parasail/parasail

@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#define USE_SIMULATED_DATA true
+#define USE_SIMULATED_DATA false
 
 int main () {
     if (USE_SIMULATED_DATA) {
@@ -19,7 +19,7 @@ int main () {
             Dataset dataset(num_reads, length, error_rate, 0.96, true);
             std::string output_dir = dataset.output();
 
-            benchmark bench(1, 1, 1, 10, 1000000, true);
+            benchmark bench(1, 1, 1, 3, 1000000, true);
             bench.read_string_file(output_dir.c_str());
             bench.run();
             bench.print();

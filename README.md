@@ -1,153 +1,91 @@
 # Approximate-String-Matching
 
-This repository contains experimental scripts of approximate string matching algorithms.
+## Benchmark
 
-- [x] Needleman-Wunsch Algorithm
-- [ ] Landau-Vishkin Algorithm (backtracking missing)
-- [x] LEAP
+### Simulated Data
 
-## Idea of Greedy Approximate String Matching Algorithm
-
-1. Starting from the current position, We find the longest highway
+Error rate: 0.05
+Total number of alignments: 1000000
 
 ```
-hurdles
-10000001110101100000111111110110011111111101001011111101111101111111111101100111101011101101111101011110011000011
-10000000100000111110100000000000111011100101000101011111111111011101111111100011111101001001101111001111111000001
-11000000011010100111111111111011101101111001000011111100101111101100110100000000010111111011100100000000000000000
-11000000111111111010100001111110000111101110000000000111011110101100000111100011100100000101000000000000000000001
-11000001011111111011011111111111010000000000000111111011100000110101101101100111100011111000011101011110011000011
-After removing ones
-10000001110001100000111111111110011111111100000011111111111111111111111111100111100011111111111100011110011000011
-10000000000000111110000000000000111111100000000000011111111111111111111111100011111100000001111111001111111000001
-11000000011000000111111111111111111111111000000011111100001111111100110000000000000111111111100000000000000000000
-11000000111111111000000001111110000111111110000000000111111110001100000111100011100000000000000011001111111000001
-11000000011111111111111111111111000000000000000111111111100000110001111111100111100011111000011100011110011000011
+[Time]
+=> Needleman-Wunsch | 36.220 s
+=> LEAP             | 1.550 s
+=> Greedy           | 0.850 s
+[Accuracy] (percentage of alignments matching optimal penalty)
+=> Needleman-Wunsch | 100.000 %
+=> LEAP             | 99.757 %
+=> Greedy           | 92.975 %
+[Coverage] (percentage of alignments covering all long consecutive matches)
+=> Greedy           | 97.512 %
 ```
 
-2. We project (using bitwise and) the highway to the lane of next highway to find the hurdle cost. For example, if we are leaping to lane 1,
+Error rate: 0.10
+Total number of alignments: 1000000
 
 ```
-hurdles
-10000001110101100000111111110110011111111101001011111101111101111111111101100111101011101101111101011110011000011
-10000000100000111110100000000000111011100101000101011111111111011101111111100011111101001001101111001111111000001
-11000000011010100111111111111011101101111001000011111100000000101100110100000000010111111011100100000000000000000
-11000000111111111010100001111110000111101110000000000111000000101100000111100011100100000101001000000000000000001
-11000001011111111011011111111111010000000000000111111011100000110101101101100111100011111000011101011110011000011
-After removing ones
-10000001110001100000111111111110011111111100000011111111111111111111111111100111100011111111111100011110011000011
-10000000000000111110000000000000111111100000000000011111111111111111111111100011111100000001111111001111111000001
-11000000011000000111111111111111111111111000000011111100001111111100110000000000000111111111100000000000000000000
-11000000111111111000000001111110000111111110000000000111111110001100000111100011100000000000000000000000000000001
-11000000011111111111111111111111000000000000000111111111111100110001111111100111100011111000011100011110011000011
+[Time]
+=> Needleman-Wunsch | 34.260 s
+=> LEAP             | 2.890 s
+=> Greedy           | 1.210 s
+[Accuracy] (percentage of alignments matching optimal penalty)
+=> Needleman-Wunsch | 100.000 %
+=> LEAP             | 98.066 %
+=> Greedy           | 78.020 %
+[Coverage] (percentage of alignments covering all long consecutive matches)
+=> Greedy           | 94.213 %
 ```
 
-## Metrics
-
-If a string has an error rate of $e$, then the length of consecutive matches follows a geometric distribution with parameter $p=e$. Denote the length of consecutive matches as a random variable $L$, then $Pr[L=l]=(1-e)^le$. The expectation of $L$ is $E[L]=\frac{1-e}{e}$.
-
-The length of highways in the hurdle matrix, however, there is a chance that the actual highways (containing the matches in the optimal match) are longer. With 1/4 chance, the highway can be prolonged by 1.
-
-This means that we can expect GASMA to return a result that contains longer consecutive matches.
-
-To judge whether our matchings works, we check
-
-- Edit Distance (Whether our algorithm matches the optimal edit distance)
-- mean of length of consecutive matches. Larger number may indicate a better match.
-
-## When will it fail
-
-- When the small highway is out of the range we are searching
-- When there are some highways that con only be chosen when the sight is short/large
-
-Two basic cases:
-
-1. We choose the wrong highway.
-
+Error rate: 0.15
+Total number of alignments: 1000000
 ```
-GGGGAAC-GTCCACTC-CG--CGACGA-CT-GAT-GGGA-CCTCCAAAGCATCGATTTTCCA-GCGGACCTGTACCCCCCATGTAAATATTCCAAGTTTACGGATTC-AC
-GGGGAACTGT-CACTCGCGTCCGACGACCTCGATAGGGACCCTCC-AAGCATCG-TTGTCCAGGCGGGCCTGGCTACCCCATCTAAATATTCCAATTTTATCGCTTCGAC
-GGGGAAC-GTCCACTCCGCG-ACGACTGATGGGACCTCCAAAGCATCGATTTTCCA-GC-----------GG---ACCTG--TACCCCCCATGTAAATATTCCAAGTTTA-CGGATTC-AC
-GGGGAACTGTC-ACTC-GCGTCCGAC------GACCTCGATAG---GGACCCTCCAAGCATCGTTGTCCAGGCGGGCCTGGCTA--CCCCATCTAAATATTCCAATTTTATCG-CTTCGAC
-NW Cost: 24.0
-GASMA Cost: 46
+[Time]
+=> Needleman-Wunsch | 32.330 s
+=> LEAP             | 3.850 s
+=> Greedy           | 1.640 s
+[Accuracy] (percentage of alignments matching optimal penalty)
+=> Needleman-Wunsch | 100.000 %
+=> LEAP             | 93.424 %
+=> Greedy           | 57.939 %
+[Coverage] (percentage of alignments covering all long consecutive matches)
+=> Greedy           | 90.418 %
 ```
 
-
-
-## Current problems with Greedy ASM Algorithm
-
-1. It is not able to find the optimal path between highways. For example, an optimal match between two DNAs look like the following,
-
-   ```
-   AGAGCTAAAC-ATGGCCGCACATAAATCGTTTTGAG-TTGAA-A-CTTTACCGCTGCATCTA-TTTTTCTCCTAGAATTATACCGTACACAGCCGAC-GTTCCACC
-   AGAGCTAAACAAGGGGCCCACATTAA-CGTTTTGAGCTTGAAGATCTTTACCGC-G-ATCTATTTTTTCTCCTAG-A-T-TACCGTACACA-CCGACACTTCCATC
-   ```
-   But GASMA will give the following results,
-   ```
-   AGAGCTAAACATGG-CCGCACATAAATCGTTTTGAGTT-GAA--ACTTTACCGCTGCATCTATTTT-TCTCCTAGAATTATACCGTACACAGCCG-ACGTTCCACC
-   AGAGCTAAACAAGGGGCCCACATTAA-CGTTTTGAGCTTGAAGATCTTTACCGC--GATCTATTTTTTCTCCTAGAT---TACCGTACACACC-GACACTTCCATC
-   ```
-
-   As a result, the calculated edit distance is 24 instead of 19, which is optimal. For now I always switch lanes at the end of each highway and and then go directly to the next highway, so there will be some errors in between.
-   
-   **Potential solution**: Maybe use traditional DP to find optimal path between highways?
-
-   **Potential solution 2**: Maybe we can also extract those high-speed bridges (like `G-A-T-T` above) and put them into considerations?
-
-   **Potential solution 3**: Leave them as-is and 
-
-2. There are currently too many parameters for GASMA. Including:
-
-   - `z` Maximum length of streaks of zeros we are skipping
-   - `o` Maximum length of streaks of ones we are skipping
-   - `k` as in Banded Levenshtein distance problem
-   - `sight` which indicates the range of highway we are choosing from
-
-   And choosing those parameters can greatly affect performance.
-
-   - `z=2, o=2, sight=3`, we have `MAE=2.396, CR=0.314`
-   - `z=0, o=0, sight=3`, we have `MAE=1.29, CR=0.459`
-   - `z=0, o=0, sight=5`, we have `MAE=2.002, CR=0.194`
-
-3. Currently I abandoned the greedy algorithm that tried to find global optimum, because it is unstable when `k` goes large. Too many highways to consider also make it very slow.
-
-## Current Benchmark Results
-
-With 20,000 samples with random error rate, we can calculate the following statistics:
-
-### Mean Absolute Error
-
-The mean absolute error between result of GASMA and Needleman Wunsch
-
-![](./pymatch/test/asset/MAE.png)
-
-
-### Correct Rate
-
-The proportion of test cases where GASMA correctly identified the optimal edit distance
-
-![](./pymatch/test/asset/CR.png)
-
-### Relative Error
-
-The relative absolute error with respect to the optimal edit distance
-
-![](./pymatch/test/asset/error_relative.png)
-
-
-## Test Result
-
-Number of test samples, MAE, Correct rate, respectively.
+Error rate: 0.20
+Total number of alignments: 1000000
 
 ```
-{0: 1978, 1: 2004, 2: 2010, 3: 2057, 4: 2082, 5: 2100, 6: 2196, 7: 2312, 8: 2287, 9: 2318, 10: 2374, 11: 2456, 12: 2558, 13: 2467, 14: 2644, 15: 2664, 16: 2715, 17: 2757, 18: 2799, 19: 2704, 20: 2518}
-[0.0, 0.0, 0.0009950248756218905, 0.0009722897423432182, 0.005283381364073006, 0.007619047619047619, 0.009562841530054645, 0.01513840830449827, 0.024486226497595104, 0.038395168248490076, 0.06023588879528222, 0.10097719869706841, 0.15089913995308835, 0.20713417105796514, 0.20537065052950076, 0.2616366366366366, 0.32265193370165746, 0.4134929270946681, 0.5523401214719542, 0.5539940828402367, 0.7259729944400317]
-[1.0, 1.0, 0.9990049751243781, 0.9990277102576568, 0.994716618635927, 0.9923809523809524, 0.9931693989071039, 0.9852941176470589, 0.9785745518146043, 0.9672131147540983, 0.9625105307497894, 0.9531758957654723, 0.9296325254104769, 0.9201459262261856, 0.9043116490166414, 0.8926426426426426, 0.8714548802946593, 0.8367791077257889, 0.8099321186137907, 0.7873520710059172, 0.7490071485305798]
+[Time]
+=> Needleman-Wunsch | 31.550 s
+=> LEAP             | 4.470 s
+=> Greedy           | 1.730 s
+[Accuracy] (percentage of alignments matching optimal penalty)
+=> Needleman-Wunsch | 100.000 %
+=> LEAP             | 88.579 %
+=> Greedy           | 46.023 %
+[Coverage] (percentage of alignments covering all long consecutive matches)
+=> Greedy           | 88.289 %
 ```
-|Error Rate|MAE|CR|
-|---|---|---|
-|5% | 0.007619047619047619| 0.9923809523809524|
-|10%| 0.06023588879528222|0.9625105307497894|
-|15%|0.2616366366366366|0.8926426426426426|
-|20%| 0.7259729944400317| 0.7490071485305798|
+### Real Data
+
+Dataset generated by illumina reads SRR611076.
+
+- Number of highways per alignment:       ~3.46339795332125282947
+- Percentage of mismatch:         ~0.02452309963366200179
+- Percentage of insert:   ~0.00046834182131581764
+- Percentage of delete:   ~0.00055319598705419218
+
+Total number of alignments: 3700283
+
+```
+[Time]
+=> Needleman-Wunsch | 137.840 s
+=> LEAP             | 5.630 s
+=> Greedy           | 3.620 s
+[Accuracy] (percentage of alignments matching optimal penalty)
+=> Needleman-Wunsch | 100.000 %
+=> LEAP             | 89.524 %
+=> Greedy           | 89.725 %
+[Coverage] (percentage of alignments covering all long consecutive matches)
+=> Greedy           | 96.843 %
+```

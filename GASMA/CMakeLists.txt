@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.4)
 PROJECT(GASMA)
 
-SET(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_STANDARD 20)
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbmi -m64 -g3 -Wall -msse4.2 -march=native -O3")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mbmi -m64 -g3 -Wall -msse4.2 -march=native -O3")
 
@@ -11,6 +11,8 @@ LINK_DIRECTORIES(
         benchmark/parasail
         benchmark/LEAP
 )
+
+FIND_PACKAGE(SeqAn3 3.0.0 REQUIRED HINTS "${CMAKE_SOURCE_DIR}/mapper/seqan3/build_system")
 
 # set file sets
 SET(SHARED_FILES
@@ -25,6 +27,9 @@ ADD_SUBDIRECTORY(benchmark/parasail)
 
 # Add LEAP library
 ADD_SUBDIRECTORY(benchmark/LEAP_SIMD)
+
+# Add seqan3 library
+ADD_SUBDIRECTORY(mapper/seqan3)
 
 # Executable for running hurdle-matrix
 ADD_EXECUTABLE(hurdle-matrix test/test_hurdle_matrix.cpp ${SHARED_FILES} hurdle_matrix.h)
@@ -46,4 +51,8 @@ ADD_EXECUTABLE(test main.cpp utils.h bit_convert.h bit_convert.cpp mask.cpp mask
 SET_TARGET_PROPERTIES(test PROPERTIES COMPILE_FLAGS "-DDEBUG -DDISPLAY")
 
 # Compiling the library for greedy algorithm
-ADD_LIBRARY(GASMA ${SHARED_FILES} hurdle_matrix.h)
+ADD_LIBRARY(GASMA ${SHARED_FILES} hurdle_matrix.h main.cpp)
+
+# Executable for mapper
+ADD_EXECUTABLE(my-mapper mapper/main.cpp)
+TARGET_LINK_LIBRARIES(my-mapper seqan3::seqan3)

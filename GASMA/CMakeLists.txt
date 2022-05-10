@@ -10,6 +10,7 @@ LINK_DIRECTORIES(
         benchmark/parasail/parasail
         benchmark/parasail
         benchmark/LEAP
+        mapper/seqan3/submodules/cereal
 )
 
 FIND_PACKAGE(SeqAn3 3.0.0 REQUIRED HINTS "${CMAKE_SOURCE_DIR}/mapper/seqan3/build_system")
@@ -55,4 +56,4 @@ ADD_LIBRARY(GASMA ${SHARED_FILES} hurdle_matrix.h main.cpp)
 
 # Executable for mapper
 ADD_EXECUTABLE(my-mapper mapper/main.cpp)
-TARGET_LINK_LIBRARIES(my-mapper seqan3::seqan3)
+TARGET_LINK_LIBRARIES(my-mapper seqan3::seqan3 cereal)

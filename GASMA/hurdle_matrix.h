@@ -141,17 +141,17 @@ protected:
     int A_index, B_index, A_match_index, B_match_index;
 #endif
 
-    // int_128bit objects storing the bit arrays converted from string A and B
-    int_128bit* A_bit0_mask;
-    int_128bit* A_bit1_mask;
-    int_128bit* B_bit0_mask;
-    int_128bit* B_bit1_mask;
+    // int_256bit objects storing the bit arrays converted from string A and B
+    int_256bit* A_bit0_mask;
+    int_256bit* A_bit1_mask;
+    int_256bit* B_bit0_mask;
+    int_256bit* B_bit1_mask;
 
     // rows in the hurdle matrix
-    int_128bit* lanes;
+    int_256bit* lanes;
 
     // original rows (without flipping hurdles)
-    int_128bit* lanes_orig;
+    int_256bit* lanes_orig;
 
     // information about destination
     int destination_lane;
@@ -263,10 +263,10 @@ protected:
         sse3_convert2bit1(B, B_bit0_t, B_bit1_t);
 
         // convert the int8 array into 128-bit integer
-        A_bit0_mask = new int_128bit(A_bit0_t);
-        A_bit1_mask = new int_128bit(A_bit1_t);
-        B_bit0_mask = new int_128bit(B_bit0_t);
-        B_bit1_mask = new int_128bit(B_bit1_t);
+        A_bit0_mask = new int_256bit(A_bit0_t);
+        A_bit1_mask = new int_256bit(A_bit1_t);
+        B_bit0_mask = new int_256bit(B_bit0_t);
+        B_bit1_mask = new int_256bit(B_bit1_t);
     }
 
 
@@ -287,7 +287,7 @@ protected:
             if ((*highway_list)[lane].starting_point < start_col) {
                 (*highway_list)[lane].num_switches = abs(lane - current_lane);
                 // get closest highway in the lane
-                int_128bit l = (lanes[lane + MAX_K]).shift_left(start_col);
+                int_256bit l = (lanes[lane + MAX_K]).shift_left(start_col);
 
                 // update highway in lane
                 first_zero = l.first_zero();
@@ -433,7 +433,7 @@ protected:
      * -k and k. Store everything in `lanes`.
      */
     void _construct_hurdles() {
-        int_128bit mask_bit0, mask_bit1;
+        int_256bit mask_bit0, mask_bit1;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             if (lane < 0) {
                 mask_bit0 = (A_bit0_mask->shift_left(-lane))._xor(*B_bit0_mask);
@@ -449,7 +449,7 @@ protected:
     }
 
 public:
-    int_128bit& operator[](int lane){
+    int_256bit& operator[](int lane){
         return lanes[lane + MAX_K];
     }
 
@@ -505,8 +505,8 @@ public:
 
         _convert_read();
         highway_list = new highways(MAX_K, m, n, lower_bound, upper_bound);
-        lanes = new int_128bit[2 * MAX_K + 1];
-        lanes_orig = new int_128bit[2 * MAX_K + 1];
+        lanes = new int_256bit[2 * MAX_K + 1];
+        lanes_orig = new int_256bit[2 * MAX_K + 1];
         destination_lane = n - m;
         is_first_step = true;
         _construct_hurdles();

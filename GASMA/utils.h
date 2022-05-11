@@ -355,8 +355,13 @@ public:
                                                      0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF));
     }
 
+
     int_256bit shift_right(int shift_num) {
         __m256i vec = this->val;
+        if (shift_num >= 128) {
+            vec = _mm256_inserti128_si256(_mm256_setzero_si256(), _mm256_extracti128_si256(vec, 0), 1);
+            shift_num = shift_num % 128;
+        }
         if (shift_num >= 64) {
             vec = _mm256_slli_si256(vec, 8);
             shift_num = shift_num % 64;
@@ -369,13 +374,17 @@ public:
 
     int_256bit shift_left(int shift_num) {
         __m256i vec = this->val;
+        if (shift_num >= 128) {
+            vec = _mm256_inserti128_si256(_mm256_setzero_si256(), _mm256_extracti128_si256(vec, 1), 0);
+            shift_num = shift_num % 128;
+        }
         if (shift_num >= 64) {
             vec = _mm256_srli_si256(vec, 8);
             shift_num = shift_num % 64;
         }
         __m256i carryover = _mm256_srli_si256(vec, 8);
-        carryover = _mm256_slli_si256(carryover, 64 - shift_num);
-        vec = _mm256_srli_si256(vec, shift_num);
+        carryover = _mm256_slli_epi64(carryover, 64 - shift_num);
+        vec = _mm256_srli_epi64(vec, shift_num);
         return _mm256_or_si256(vec, carryover);
     }
 
@@ -424,11 +433,22 @@ public:
      *
      * @return this->val with short 1 bits flipped.
      */
-    int_256bit flip_short_hurdles() {
-        int_256bit l1 = this->shift_left_one();
-        int_256bit r1 = this->shift_right_one();
-        int_256bit mask = l1._or(r1);
-        return this->_and(mask);
+    int_256bit flip_short_hurdles(int threshold) {
+        int_256bit l1 = this->shift_left(1);
+        int_256bit r1 = this->shift_right(1);
+        int_256bit l2, r2;
+        if (threshold > 1) {
+            l2 = this->shift_left(2);
+            r2 = this->shift_right(2);
+        }
+
+        int_256bit mask_1 = l1._or(r1);
+        if (threshold > 1) {
+            int_256bit mask_2 = l2._or(r2)._or(mask_1);
+            return this->_and(mask_2);
+        } else {
+            return this->_and(mask_1);
+        }
     }
 
     /**
@@ -453,6 +473,18 @@ public:
             return this->_or(mask_1);
         }
 
+    }
+
+    int pop_count_between(int from = 0, int to = 256) {
+        int_256bit shifted = this->shift_left(from).shift_right(from + 256 - to);
+        return shifted.pop_count();
+    }
+
+    int pop_count() {
+        int_128bit lo = _mm256_castsi256_si128(this->val);
+        int_128bit hi = _mm256_castsi256_si128(this->shift_left(128).val);
+
+        return lo.pop_count() + hi.pop_count();
     }
 };
 

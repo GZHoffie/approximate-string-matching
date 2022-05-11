@@ -17,6 +17,7 @@
 #include <seqan3/io/sequence_file/input.hpp>
 #include <seqan3/search/all.hpp>
 #include <seqan3/search/fm_index/bi_fm_index.hpp>
+#include <seqan3/core/debug_stream.hpp>
 #include <span>
 
 struct reference_storage_t
@@ -62,12 +63,12 @@ void map_reads(std::filesystem::path const & query_path,
 
     seqan3::configuration const search_config = seqan3::search_cfg::max_error_total{
             seqan3::search_cfg::error_count{errors}} |
-                                                seqan3::search_cfg::hit_all_best{};
+                                                seqan3::search_cfg::hit_single_best{};
 
     seqan3::configuration const align_config = seqan3::align_cfg::method_global{
-            seqan3::align_cfg::free_end_gaps_sequence1_leading{true},
+            seqan3::align_cfg::free_end_gaps_sequence1_leading{false},
             seqan3::align_cfg::free_end_gaps_sequence2_leading{false},
-            seqan3::align_cfg::free_end_gaps_sequence1_trailing{true},
+            seqan3::align_cfg::free_end_gaps_sequence1_trailing{false},
             seqan3::align_cfg::free_end_gaps_sequence2_trailing{false}} |
                                                seqan3::align_cfg::edit_scheme |
                                                seqan3::align_cfg::output_alignment{} |
@@ -77,11 +78,12 @@ void map_reads(std::filesystem::path const & query_path,
     for (auto && record : query_file_in)
     {
         auto & query = record.sequence();
+        std::cout << std::string(query) << std::endl;
         for (auto && result : search(query, index, search_config))
         {
             size_t start = result.reference_begin_position() ? result.reference_begin_position() - 1 : 0;
             std::span text_view{std::data(storage.seqs[result.reference_id()]) + start, query.size() + 1};
-
+            std::cout << std::string(text_view.begin(), text_view.end()) << std::endl;
             for (auto && alignment : seqan3::align_pairwise(std::tie(text_view, query), align_config))
             {
                 auto aligned_seq = alignment.alignment();
@@ -133,7 +135,7 @@ void initialise_argument_parser(seqan3::argument_parser & parser, cmd_arguments 
                       seqan3::input_file_validator{{"fq","fastq"}});
     parser.add_option(args.index_path, 'i', "index", "The path to the index.",
                       seqan3::option_spec::required,
-                      seqan3::input_file_validator{{"index"}});
+                      seqan3::input_file_validator{{"index", "fai"}});
     parser.add_option(args.sam_path, 'o', "output", "The output SAM file path.",
                       seqan3::option_spec::standard,
                       seqan3::output_file_validator{seqan3::output_file_open_options::create_new, {"sam"}});

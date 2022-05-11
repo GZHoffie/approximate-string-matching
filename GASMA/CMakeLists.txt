@@ -58,3 +58,6 @@ ADD_LIBRARY(GASMA ${SHARED_FILES} hurdle_matrix.h main.cpp)
 # Executable for mapper
 ADD_EXECUTABLE(my-mapper mapper/main.cpp)
 TARGET_LINK_LIBRARIES(my-mapper seqan3::seqan3 cereal)
+
+ADD_EXECUTABLE(my-indexer mapper/indexer.cpp)
+TARGET_LINK_LIBRARIES(my-indexer seqan3::seqan3)

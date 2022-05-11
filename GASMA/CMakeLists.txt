@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4)
-PROJECT(GASMA)
+PROJECT(GASMA CXX)
 
 SET(CMAKE_CXX_STANDARD 20)
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbmi -m64 -g3 -Wall -msse4.2 -march=native -O3")
@@ -31,6 +31,7 @@ ADD_SUBDIRECTORY(benchmark/LEAP_SIMD)
 
 # Add seqan3 library
 ADD_SUBDIRECTORY(mapper/seqan3)
+ADD_SUBDIRECTORY(mapper/seqan3/submodules/cereal)
 
 # Executable for running hurdle-matrix
 ADD_EXECUTABLE(hurdle-matrix test/test_hurdle_matrix.cpp ${SHARED_FILES} hurdle_matrix.h)

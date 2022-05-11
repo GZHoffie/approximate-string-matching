@@ -76,7 +76,7 @@ void map_reads(std::filesystem::path const & query_path,
 
     for (auto && record : query_file_in)
     {
-        auto & query = seqan3::get<seqan3::field::seq>(record);
+        auto & query = record.sequence();
         for (auto && result : search(query, index, search_config))
         {
             size_t start = result.reference_begin_position() ? result.reference_begin_position() - 1 : 0;
@@ -89,11 +89,11 @@ void map_reads(std::filesystem::path const & query_path,
                 size_t map_qual = 60u + alignment.score();
 
                 sam_out.emplace_back(query,
-                                     seqan3::get<seqan3::field::id>(record),
+                                     record.id(),
                                      storage.ids[result.reference_id()],
                                      ref_offset,
                                      aligned_seq,
-                                     seqan3::get<seqan3::field::qual>(record),
+                                     record.base_qualities(),
                                      map_qual);
             }
         }
@@ -136,7 +136,7 @@ void initialise_argument_parser(seqan3::argument_parser & parser, cmd_arguments 
                       seqan3::input_file_validator{{"index"}});
     parser.add_option(args.sam_path, 'o', "output", "The output SAM file path.",
                       seqan3::option_spec::standard,
-                      seqan3::output_file_validator{{"sam"}});
+                      seqan3::output_file_validator{seqan3::output_file_open_options::create_new, {"sam"}});
     parser.add_option(args.errors, 'e', "error", "Maximum allowed errors.",
                       seqan3::option_spec::standard,
                       seqan3::arithmetic_range_validator{0, 4});

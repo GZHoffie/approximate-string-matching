@@ -480,11 +480,71 @@ public:
         return shifted.pop_count();
     }
 
-    int pop_count() {
-        int_128bit lo = _mm256_castsi256_si128(this->val);
-        int_128bit hi = _mm256_castsi256_si128(this->shift_left(128).val);
+    uint8_t POPCOUNT[32] __aligned = {
+        /* 0 */0,
+        /* 1 */1,
+        /* 2 */1,
+        /* 3 */2,
+        /* 4 */1,
+        /* 5 */2,
+        /* 6 */2,
+        /* 7 */3,
+        /* 8 */1,
+        /* 9 */2,
+        /* a */2,
+        /* b */3,
+        /* c */2,
+        /* d */3,
+        /* e */3,
+        /* f */4,
+        /* 0 */0,
+        /* 1 */1,
+        /* 2 */1,
+        /* 3 */2,
+        /* 4 */1,
+        /* 5 */2,
+        /* 6 */2,
+        /* 7 */3,
+        /* 8 */1,
+        /* 9 */2,
+        /* a */2,
+        /* b */3,
+        /* c */2,
+        /* d */3,
+        /* e */3,
+        /* f */4 };
 
-        return lo.pop_count() + hi.pop_count();
+    uint8_t __MASK_0F_[32] __aligned = {
+            0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+            0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+            0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
+            0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf
+    };
+
+    int pop_count() {
+        uint32_t result;
+        __m256i reg = this->val;
+
+        __m256i clear_mask = _mm256_loadu_si256( (__m256i*) __MASK_0F_);
+        __m256i count_mask = _mm256_loadu_si256( (__m256i*) POPCOUNT);
+
+        __m256i upper_bits = _mm256_srli_epi16(reg, 4);
+        upper_bits = _mm256_and_si256(upper_bits, clear_mask);
+        __m256i lower_bits = _mm256_and_si256(reg, clear_mask);
+
+        __m256i lower_sum = _mm256_shuffle_epi8(count_mask, lower_bits);
+        __m256i upper_sum = _mm256_shuffle_epi8(count_mask, upper_bits);
+
+        __m256i zero_vec = _mm256_setzero_si256();
+
+        __m256i packed_sum_8 = _mm256_add_epi8(lower_sum, upper_sum);
+        __m256i packed_sum_64 = _mm256_sad_epu8(packed_sum_8, zero_vec);
+
+        uint64_t packed_sum[4];
+        _mm256_store_si256((__m256i*)packed_sum, packed_sum_64);
+        result = packed_sum[0] + packed_sum[1] + packed_sum[2] + packed_sum[3];
+
+        return (int) result;
     }
 };
 

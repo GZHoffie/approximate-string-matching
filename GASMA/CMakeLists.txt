@@ -56,7 +56,7 @@ SET_TARGET_PROPERTIES(test PROPERTIES COMPILE_FLAGS "-DDEBUG -DDISPLAY")
 ADD_LIBRARY(GASMA ${SHARED_FILES} hurdle_matrix.h main.cpp)
 
 # Executable for mapper
-ADD_EXECUTABLE(my-mapper mapper/main.cpp)
+ADD_EXECUTABLE(my-mapper ${SHARED_FILES} mapper/main.cpp seqan3_main.h)
 TARGET_LINK_LIBRARIES(my-mapper seqan3::seqan3 cereal)
 
 ADD_EXECUTABLE(my-indexer mapper/indexer.cpp)

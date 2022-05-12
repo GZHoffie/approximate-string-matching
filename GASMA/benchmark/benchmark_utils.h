@@ -53,7 +53,7 @@ private:
     parasail_matrix_t* penalty_matrix;
 
     // Greedy algorithm objects
-    hurdle_matrix* matrix;
+    hurdle_matrix<int_128bit>* matrix;
 
     // whether we use SIMD acceleration for NW and LEAP
     bool use_SIMD;
@@ -284,7 +284,7 @@ public:
         // initialize the objects used for benchmarking
         use_SIMD = _use_SIMD;
         ed_obj = new LV;
-        matrix = new hurdle_matrix(GLOBAL, x, o, e);
+        matrix = new hurdle_matrix<int_128bit>(GLOBAL, x, o, e);
         penalty_matrix = parasail_matrix_create("ACGT", 0, -x);
         ed_obj->init(k, 200, ED_GLOBAL, x, o, e);
 

@@ -20,6 +20,9 @@
 #include <seqan3/core/debug_stream.hpp>
 #include <span>
 
+#include "../hurdle_matrix.h"
+#include "../seqan3_main.h"
+
 struct reference_storage_t
 {
     std::vector<std::string> ids;
@@ -65,25 +68,23 @@ void map_reads(std::filesystem::path const & query_path,
             seqan3::search_cfg::error_count{errors}} |
                                                 seqan3::search_cfg::hit_single_best{};
 
-    seqan3::configuration const align_config = seqan3::align_cfg::method_global{
-            seqan3::align_cfg::free_end_gaps_sequence1_leading{false},
-            seqan3::align_cfg::free_end_gaps_sequence2_leading{false},
-            seqan3::align_cfg::free_end_gaps_sequence1_trailing{false},
-            seqan3::align_cfg::free_end_gaps_sequence2_trailing{false}} |
-                                               seqan3::align_cfg::edit_scheme |
-                                               seqan3::align_cfg::output_alignment{} |
-                                               seqan3::align_cfg::output_begin_position{} |
-                                               seqan3::align_cfg::output_score{};
+    hurdle_matrix<int_128bit>* matrix = new hurdle_matrix<int_128bit>(GLOBAL, 1, 1, 1);
 
     for (auto && record : query_file_in)
     {
         auto & query = record.sequence();
-        std::cout << std::string(query) << std::endl;
+        //std::cout << std::string(query) << std::endl;
         for (auto && result : search(query, index, search_config))
         {
             size_t start = result.reference_begin_position() ? result.reference_begin_position() - 1 : 0;
             std::span text_view{std::data(storage.seqs[result.reference_id()]) + start, query.size() + 1};
-            std::cout << std::string(text_view.begin(), text_view.end()) << std::endl;
+            std::cout << seqan_dna_to_cstring(text_view).c_str() << std::endl;
+            matrix->reset(seqan_dna_to_cstring(query).c_str(),
+                          query.size(),
+                          seqan_dna_to_cstring(text_view).c_str(),
+                          text_view.size(), 3);
+            matrix->run();
+            /*
             for (auto && alignment : seqan3::align_pairwise(std::tie(text_view, query), align_config))
             {
                 auto aligned_seq = alignment.alignment();
@@ -98,6 +99,7 @@ void map_reads(std::filesystem::path const & query_path,
                                      record.base_qualities(),
                                      map_qual);
             }
+             */
         }
     }
 }

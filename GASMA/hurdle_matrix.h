@@ -12,6 +12,12 @@
 #include <limits>
 #include <math.h>
 
+/**
+ * The main class for the greedy string matching algorithm.
+ * @tparam T either `int_128bit` (SSE) or `int_256bit` (AVX2), representing the type to store
+ * the hurdle matrix in bits.
+ */
+template <typename T>
 class hurdle_matrix {
 private:
     /**
@@ -141,17 +147,17 @@ protected:
     int A_index, B_index, A_match_index, B_match_index;
 #endif
 
-    // int_256bit objects storing the bit arrays converted from string A and B
-    int_256bit* A_bit0_mask;
-    int_256bit* A_bit1_mask;
-    int_256bit* B_bit0_mask;
-    int_256bit* B_bit1_mask;
+    // T objects storing the bit arrays converted from string A and B
+    T* A_bit0_mask;
+    T* A_bit1_mask;
+    T* B_bit0_mask;
+    T* B_bit1_mask;
 
     // rows in the hurdle matrix
-    int_256bit* lanes;
+    T* lanes;
 
     // original rows (without flipping hurdles)
-    int_256bit* lanes_orig;
+    T* lanes_orig;
 
     // information about destination
     int destination_lane;
@@ -263,10 +269,10 @@ protected:
         sse3_convert2bit1(B, B_bit0_t, B_bit1_t);
 
         // convert the int8 array into 128-bit integer
-        A_bit0_mask = new int_256bit(A_bit0_t);
-        A_bit1_mask = new int_256bit(A_bit1_t);
-        B_bit0_mask = new int_256bit(B_bit0_t);
-        B_bit1_mask = new int_256bit(B_bit1_t);
+        A_bit0_mask = new T(A_bit0_t);
+        A_bit1_mask = new T(A_bit1_t);
+        B_bit0_mask = new T(B_bit0_t);
+        B_bit1_mask = new T(B_bit1_t);
     }
 
 
@@ -287,7 +293,7 @@ protected:
             if ((*highway_list)[lane].starting_point < start_col) {
                 (*highway_list)[lane].num_switches = abs(lane - current_lane);
                 // get closest highway in the lane
-                int_256bit l = (lanes[lane + MAX_K]).shift_left(start_col);
+                T l = (lanes[lane + MAX_K]).shift_left(start_col);
 
                 // update highway in lane
                 first_zero = l.first_zero();
@@ -433,7 +439,7 @@ protected:
      * -k and k. Store everything in `lanes`.
      */
     void _construct_hurdles() {
-        int_256bit mask_bit0, mask_bit1;
+        T mask_bit0, mask_bit1;
         for (int lane = lower_bound; lane <= upper_bound; lane++) {
             if (lane < 0) {
                 mask_bit0 = (A_bit0_mask->shift_left(-lane))._xor(*B_bit0_mask);
@@ -449,7 +455,7 @@ protected:
     }
 
 public:
-    int_256bit& operator[](int lane){
+    T& operator[](int lane){
         return lanes[lane + MAX_K];
     }
 
@@ -476,6 +482,8 @@ public:
             double mismatch_prob = 0.02,
             double indel_prob = 0.03
             ) {
+        // TODO: replace MAX_LENGTH with either 128 or 256, depending on the whether
+        // `T` is `int_128bit` or `int_256bit`.
         m = std::min(MAX_LENGTH, static_cast<int>(strlen(read)));
         n = std::min(MAX_LENGTH, static_cast<int>(strlen(ref)));
 
@@ -505,8 +513,8 @@ public:
 
         _convert_read();
         highway_list = new highways(MAX_K, m, n, lower_bound, upper_bound);
-        lanes = new int_256bit[2 * MAX_K + 1];
-        lanes_orig = new int_256bit[2 * MAX_K + 1];
+        lanes = new T[2 * MAX_K + 1];
+        lanes_orig = new T[2 * MAX_K + 1];
         destination_lane = n - m;
         is_first_step = true;
         _construct_hurdles();

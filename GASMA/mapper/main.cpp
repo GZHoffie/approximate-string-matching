@@ -78,28 +78,22 @@ void map_reads(std::filesystem::path const & query_path,
         {
             size_t start = result.reference_begin_position() ? result.reference_begin_position() - 1 : 0;
             std::span text_view{std::data(storage.seqs[result.reference_id()]) + start, query.size() + 1};
-            std::cout << seqan_dna_to_cstring(text_view).c_str() << std::endl;
+            // Run the hurdle matrix
             matrix->reset(seqan_dna_to_cstring(query).c_str(),
                           query.size(),
                           seqan_dna_to_cstring(text_view).c_str(),
                           text_view.size(), 3);
             matrix->run();
-            /*
-            for (auto && alignment : seqan3::align_pairwise(std::tie(text_view, query), align_config))
-            {
-                auto aligned_seq = alignment.alignment();
-                size_t ref_offset = alignment.sequence1_begin_position() + 2 + start;
-                size_t map_qual = 60u + alignment.score();
+            std::pair<std::span<seqan3::dna5>, std::span<seqan3::dna5>> alignment = {query, text_view};
 
-                sam_out.emplace_back(query,
-                                     record.id(),
-                                     storage.ids[result.reference_id()],
-                                     ref_offset,
-                                     aligned_seq,
-                                     record.base_qualities(),
-                                     map_qual);
-            }
-             */
+            sam_out.emplace_back(query,
+                                 record.id(),
+                                 storage.ids[result.reference_id()],
+                                 start + 2, // TODO: correct this number
+                                 alignment, // FIXME: let hurdle matrix return a comparable type to seqan3::gap
+                                 record.base_qualities(),
+                                 60u + matrix->get_cost()
+                                 );
         }
     }
 }

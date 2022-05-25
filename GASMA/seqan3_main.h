@@ -14,7 +14,7 @@ std::string seqan_dna_to_cstring(std::span<seqan3::dna5> dna) {
     std::string res;
     res.reserve(dna.size());
     for (seqan3::dna5 c : dna) {
-        res.append(reinterpret_cast<const char *>(c.to_char()));
+        res += c.to_char();
     }
     return res;
 }
